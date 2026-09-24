@@ -1,0 +1,16 @@
+{
+  "target_size": [512, 512],
+  "fov_crop": {
+    "threshold": 10,
+    "margin": 0
+  },
+  "clahe": {
+    "clip_limit": 2.0,
+    "tile_grid_size": [8, 8],
+    "channel": "L"
+  },
+  "normalization": {
+    "range": [0.0, 1.0],
+    "dtype": "float32"
+  }
+}

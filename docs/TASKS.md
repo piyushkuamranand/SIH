@@ -4,18 +4,18 @@ Read `HANDOFF.md` and `IMPLEMENTATION_SCHEMA.md` before touching this file. This
 
 ## CURRENT TASK
 
-TASK-003 | Preprocessing function (no model)
+TASK-004 | Integrate the IQA (quality) model
 
 ## NEXT TASK
 
-TASK-004 | Integrate the IQA (quality) model
+TASK-005 | PHASE 1 CHECKPOINT
 
 ## COMPLETED TASKS
 
 - [x] TASK-001 — Create repository structure (done 2026-09-25)
 - [x] TASK-002 — Define and implement the model contract (done 2026-09-25)
+- [x] TASK-003 — Preprocessing function (no model) (done 2026-09-25)
 
-- [ ] TASK-003 — Preprocessing function (no model)
 - [ ] TASK-004 — Integrate the IQA (quality) model
 - [ ] TASK-005 — PHASE 1 CHECKPOINT
 - [ ] TASK-006 — Integrate vessel segmentation model
@@ -44,10 +44,11 @@ None
 - Control files (HANDOFF.md, IMPLEMENTATION_SCHEMA.md, TASKS.md) generated from the SIH26038 PRD, the NETRA-DR Final Model Stack, and the NETRA-DR Master Build Prompt. No architecture component was dropped; Stage 10 (ensemble) and Stage 6 (NV) are marked OPTIONAL per the source documents' own framing, and Simulink (Stage 12) is kept as an independent, non-blocking track — see "KNOWN CONFLICTS / DECISIONS RECORDED" in HANDOFF.md for the full reasoning.
 - TASK-001: Initialized Git repository and created complete repository skeleton with directory structure and placeholder .gitkeep / __init__.py files.
 - TASK-002: Implemented pipeline/contract.py with zero external dependencies (standard library json used per prompt preference). Tested via unittest with 13/13 passing tests.
+- TASK-003: Implemented deterministic Phase 1 preprocessing in pipeline/preprocessing.py (FOV crop, resize, CLAHE on L channel in LAB color space, normalization) configured via configs/preprocessing.json without hardcoded magic numbers. Validated with 16/16 tests passing, including visual inspection outputs in tests/fixtures/output/.
 
 ## LAST VALIDATED RESULT
 
-TASK-002 validated: 13/13 tests passed in tests/test_contract.py covering valid contracts, missing required fields (with explicit field names in error messages), corrupted JSON, and missing artifact resolution.
+TASK-003 validated: 16/16 tests passed in tests/test_preprocessing.py (29/29 total tests passed) confirming output target_size shape (512, 512, 3), float32 range [0.0, 1.0], error handling on corrupted/missing inputs, and visual before/after contrast enhancement in tests/fixtures/output/.
 
 ---
 
