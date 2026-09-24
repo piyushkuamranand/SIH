@@ -1,0 +1,23 @@
+{
+  "fusion_model_fitted": false,
+  "method": "grade_alone_fallback",
+  "description": "Decision fusion rule combining calibrated grade probabilities and quality tier with evidence logging. The logistic regression fusion model is not yet trained offline (fallback mode active).",
+  "referable_grades": [2, 3, 4],
+  "thresholds": {
+    "good_quality": {
+      "referable_prob_threshold": 0.50,
+      "description": "Standard decision threshold on sum of calibrated P(Grade >= 2) for Good quality images"
+    },
+    "borderline_quality": {
+      "referable_prob_threshold": 0.35,
+      "description": "Stricter (higher sensitivity / lower threshold) cutoff for Borderline quality images"
+    }
+  },
+  "fusion_features": [
+    "calibrated_prob_grade_ge_2",
+    "ma_count",
+    "he_presence",
+    "ex_area",
+    "is_borderline_quality"
+  ]
+}
