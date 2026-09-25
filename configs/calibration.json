@@ -1,0 +1,7 @@
+{
+  "temperature": 1.0,
+  "fitted": false,
+  "method": "temperature_scaling",
+  "dataset": "validation_fold",
+  "description": "Temperature scaling calibration parameter for Phase 3 DR grading model. Default is 1.0 (unfitted / no-op) until fitted offline on validation fold."
+}
