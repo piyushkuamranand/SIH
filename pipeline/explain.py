@@ -205,19 +205,6 @@ def run_gradcam(
         )
     target_class = int(severity_class)
 
-    # 2. Load model contract
-    contract = load_contract(model_dir, model_type="classifier")
-    model_path = resolve_model_path(model_dir, contract)
-    if not Path(model_path).is_file():
-        raise ModelArtifactNotFoundError(
-            f"model artifact missing — Phase 4 explainability cannot run: "
-            f"ONNX model file '{model_path}' not found on disk."
-        )
-
-    # 3. Prepare input tensor per contract specification
-    input_size = contract.get("input_size", [512, 512])
-    target_h, target_w = int(input_size[0]), int(input_size[1])
-
     # Convert base image to uint8 for resizing and normalization
     if isinstance(preprocessed_image, (str, Path)):
         img_path = Path(preprocessed_image)
@@ -235,41 +222,94 @@ def run_gradcam(
     else:
         raise ValueError(f"Unsupported image type: {type(preprocessed_image).__name__}")
 
-    resized = cv2.resize(base_uint8, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
-    norm_spec = contract.get("normalization", {})
-    norm_mean = norm_spec.get("mean", [0.0, 0.0, 0.0]) if isinstance(norm_spec, dict) else [0.0, 0.0, 0.0]
-    norm_std = norm_spec.get("std", [1.0, 1.0, 1.0]) if isinstance(norm_spec, dict) else [1.0, 1.0, 1.0]
+    model_dir_path = Path(model_dir)
+    has_metadata = (model_dir_path / "metadata.json").is_file()
+    is_custom_dir = (str(model_dir) != "models/grading" and str(model_dir) != "models\\grading")
 
-    img_float = resized.astype(np.float32) / 255.0
-    mean = np.array(norm_mean, dtype=np.float32).reshape(1, 1, 3)
-    std = np.array(norm_std, dtype=np.float32).reshape(1, 1, 3)
-    img_float = (img_float - mean) / std
-    input_tensor = np.transpose(img_float, (2, 0, 1))[np.newaxis, ...].astype(np.float32)
+    if is_custom_dir or has_metadata:
+        if not has_metadata:
+            raise FileNotFoundError(
+                f"model artifact missing — Phase 4 explainability metadata.json not found in '{model_dir_path}'"
+            )
+        contract = load_contract(model_dir_path, model_type="classifier")
+        try:
+            model_path = resolve_model_path(model_dir_path, contract)
+        except ModelArtifactNotFoundError as exc:
+            raise ModelArtifactNotFoundError(
+                f"model artifact missing — Phase 4 explainability model file '{contract.get('model_file')}' not found in '{model_dir_path}'"
+            ) from exc
 
-    # 4. Compute Grad-CAM activation map
-    target_layer = contract.get("gradcam_target_layer", None)
-    cam_raw = _compute_gradcam_from_onnx(model_path, input_tensor, target_class, target_layer)
+        input_size = contract.get("input_size", [512, 512])
+        target_h, target_w = int(input_size[0]), int(input_size[1])
 
-    # 5. Generate heatmap overlay on preprocessed image
-    overlay = generate_heatmap_overlay(
-        image=base_uint8,
-        heatmap=cam_raw,
-        alpha=alpha,
-        colormap=colormap,
-    )
+        resized = cv2.resize(base_uint8, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+        norm_spec = contract.get("normalization", {})
+        norm_mean = norm_spec.get("mean", [0.0, 0.0, 0.0]) if isinstance(norm_spec, dict) else [0.0, 0.0, 0.0]
+        norm_std = norm_spec.get("std", [1.0, 1.0, 1.0]) if isinstance(norm_spec, dict) else [1.0, 1.0, 1.0]
 
-    # 6. Normalize raw heatmap for export
-    cam_norm = np.maximum(cam_raw, 0.0)
-    c_max = float(np.max(cam_norm))
-    if c_max > 0:
-        cam_norm = cam_norm / c_max
+        img_float = resized.astype(np.float32) / 255.0
+        mean = np.array(norm_mean, dtype=np.float32).reshape(1, 1, 3)
+        std = np.array(norm_std, dtype=np.float32).reshape(1, 1, 3)
+        img_float = (img_float - mean) / std
+        input_tensor = np.transpose(img_float, (2, 0, 1))[np.newaxis, ...].astype(np.float32)
 
-    return {
-        "heatmap_overlay": overlay,
-        "heatmap_raw": cam_norm,
-        "label": "model attention",
-        "severity_class": target_class,
-        "model_name": str(contract.get("model_name", "grading_model")),
-        "model_version": str(contract.get("model_version", "unknown")),
-        "alpha": float(alpha),
-    }
+        target_layer = contract.get("gradcam_target_layer", None)
+        cam_raw = _compute_gradcam_from_onnx(model_path, input_tensor, target_class, target_layer)
+
+        overlay = generate_heatmap_overlay(
+            image=base_uint8,
+            heatmap=cam_raw,
+            alpha=alpha,
+            colormap=colormap,
+        )
+
+        cam_norm = np.maximum(cam_raw, 0.0)
+        c_max = float(np.max(cam_norm))
+        if c_max > 0:
+            cam_norm = cam_norm / c_max
+
+        return {
+            "heatmap_overlay": overlay,
+            "heatmap_raw": cam_norm,
+            "label": "model attention",
+            "severity_class": target_class,
+            "model_name": str(contract.get("model_name", "grading_model")),
+            "model_version": str(contract.get("model_version", "unknown")),
+            "alpha": float(alpha),
+        }
+
+    # 2. Try native PyTorch drdetect GradingModule Grad-CAM
+    try:
+        from pipeline.grading import _ensure_venv_packages, _load_drdetect_module, _prepare_grading_input
+        _ensure_venv_packages()
+        import drdetect.explain.gradcam as gc
+        import torch
+
+        module = _load_drdetect_module()
+        inp_np, _ = _prepare_grading_input(base_uint8)
+        inp_t = torch.from_numpy(inp_np)
+        cam_raw = gc.generate_cam(module.model, inp_t, target_class=target_class)
+
+        overlay = generate_heatmap_overlay(
+            image=base_uint8,
+            heatmap=cam_raw,
+            alpha=alpha,
+            colormap=colormap,
+        )
+        cam_norm = np.maximum(cam_raw, 0.0)
+        c_max = float(np.max(cam_norm))
+        if c_max > 0:
+            cam_norm = cam_norm / c_max
+
+        return {
+            "heatmap_overlay": overlay,
+            "heatmap_raw": cam_norm,
+            "label": "model attention",
+            "severity_class": target_class,
+            "model_name": "EfficientNet-B0 (drdetect/adarshcod30)",
+            "model_version": "best.ckpt",
+            "alpha": float(alpha),
+        }
+    except Exception as pt_err:
+        logger.debug("Native PyTorch Grad-CAM unavailable (%s)", pt_err)
+        raise

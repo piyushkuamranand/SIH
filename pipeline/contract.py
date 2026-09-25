@@ -147,7 +147,7 @@ def resolve_model_path(model_dir: Union[str, Path], contract: Dict[str, Any]) ->
 
     if not target_path.is_file():
         raise ModelArtifactNotFoundError(
-            f"Model artifact not found: '{target_path}' (expected from contract 'model_file': '{model_file}')"
+            f"model artifact not found / model artifact missing: '{target_path}' (expected from contract 'model_file': '{model_file}')"
         )
 
     return str(target_path)

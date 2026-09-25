@@ -1,6 +1,42 @@
-numpy>=2.0.0
+# NETRA-DR — Python Dependencies
+# Install: pip install -r requirements.txt
+#
+# Stages 1-2 (IQA + preprocessing) are already operational.
+# Stages 3-10 (orchestrator) add the packages below.
+
+# ── Core image / array stack ─────────────────────────────────────────────────
+numpy>=1.24.0
 opencv-python>=4.8.0
 Pillow>=10.0.0
-pytest>=8.0.0
-onnxruntime>=1.17.0
+
+# ── ONNX inference (all ONNX model checkpoints) ──────────────────────────────
+onnxruntime>=1.17.0           # CPU; swap onnxruntime-gpu for CUDA nodes
+
+# ── Vessel segmentation thin-vessel metric ────────────────────────────────────
+scikit-image>=0.21.0          # skimage.morphology.skeletonize (Stage 1 metric)
+
+# ── Decision fusion (Stage 5) ─────────────────────────────────────────────────
+scikit-learn>=1.3.0           # LogisticRegression + roc_auc_score
+
+# ── Explainability (Stage 8) ─────────────────────────────────────────────────
+# Grad-CAM (primary) is applied directly via onnxruntime intermediate outputs.
+# HiResCAM (backup) requires the pytorch-grad-cam package + a PyTorch checkpoint.
+pytorch-grad-cam>=1.5.0       # HiResCAM backup; only needed if model.pt exists
+torch>=2.0.0                  # required by pytorch-grad-cam; CPU-only wheels OK
+torchvision>=0.15.0           # model loading helpers
+
+# ── Web interface ─────────────────────────────────────────────────────────────
 flask>=3.0.0
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=8.0.0
+
+# ── Notes ─────────────────────────────────────────────────────────────────────
+# temperature-scaling: bundled in ./models/temperature_scaling/ — no separate pip package.
+# FR-UNet:             ONNX artifact in ./models/vessel_seg/   — no separate pip package.
+# fundus-lesions-toolkit: ONNX artifact in ./models/lesion_seg/ — no pip package.
+# ResNet-50 grader:    ONNX artifact in ./models/grading/        (HF: sakshamkr1/ResNet50-APTOS-DR)
+# EfficientNet-B0:     ONNX artifact in ./models/grading_backup/ (HF: adarshcod30/drdetect-dr-screening)
+#
+# Sealed test sets (Messidor-2, IDRiD sealed split) are opened only by
+# eval/test_performance.py — NEVER by pipeline code.
