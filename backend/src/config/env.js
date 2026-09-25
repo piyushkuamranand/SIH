@@ -16,8 +16,14 @@ const env = {
   FLASK_HOST: process.env.FLASK_HOST || '127.0.0.1',
   FLASK_PORT: parseInt(process.env.FLASK_PORT || '5000', 10),
 
+  // AI Inference Orchestration (Module 6)
+  AI_SERVICE_URL:        process.env.AI_SERVICE_URL || `http://${process.env.FLASK_HOST || '127.0.0.1'}:${process.env.FLASK_PORT || '5000'}`,
+  AI_SERVICE_ENDPOINT:   process.env.AI_SERVICE_ENDPOINT || '/api/quality',
+  AI_SERVICE_TIMEOUT_MS: parseInt(process.env.AI_SERVICE_TIMEOUT_MS || '60000', 10),
+
   // Storage
   STORAGE_ROOT: process.env.STORAGE_ROOT || 'storage',
+  MAX_IMAGE_UPLOAD_MB: parseInt(process.env.MAX_IMAGE_UPLOAD_MB || '32', 10),
 
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
@@ -29,6 +35,9 @@ const env = {
 
 // Derived convenience helpers
 env.FLASK_BASE_URL = `http://${env.FLASK_HOST}:${env.FLASK_PORT}`;
+if (!env.AI_SERVICE_URL) {
+  env.AI_SERVICE_URL = env.FLASK_BASE_URL;
+}
 env.IS_PRODUCTION  = env.NODE_ENV === 'production';
 env.IS_DEVELOPMENT = env.NODE_ENV === 'development';
 

@@ -1,10 +1,12 @@
 node_modules/
 .env
 storage/images/*
+storage/temp/*
 storage/masks/*
 storage/heatmaps/*
 storage/reports/*
 !storage/images/.gitkeep
+!storage/temp/.gitkeep
 !storage/masks/.gitkeep
 !storage/heatmaps/.gitkeep
 !storage/reports/.gitkeep

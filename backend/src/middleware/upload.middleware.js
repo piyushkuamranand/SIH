@@ -1,11 +1,14 @@
 /**
  * middleware/upload.middleware.js — NETRA-DR Multer File Upload Middleware
  *
- * Configures multer for fundus image uploads.
- * Accepted MIME types: image/jpeg, image/png
- * Max file size: 32 MB (matches Flask MAX_CONTENT_LENGTH)
- *
- * Business logic (virus scan, metadata extraction, etc.) is NOT added yet.
+ * Configures multer for fundus image uploads (Module 4):
+ *   - Destination: backend/storage/images/
+ *   - Accepted MIME types: image/jpeg, image/png
+ *   - Accepted extensions: .jpg, .jpeg, .png
+ *   - Configurable max file size (MAX_IMAGE_UPLOAD_MB, default 32MB)
+ *   - Single image upload ('image')
+ *   - Returns 400 Bad Request for unsupported file types / extensions
+ *   - Returns 413 Payload Too Large for oversized uploads
  */
 
 'use strict';
@@ -13,48 +16,128 @@
 const path   = require('path');
 const multer = require('multer');
 const paths  = require('../config/paths');
+const env    = require('../config/env');
+const { ensureDir } = require('../utils/file.utils');
+
+const ALLOWED_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png']);
+const ALLOWED_EXTENSIONS = Object.freeze(['.jpg', '.jpeg', '.png']);
 
 // ---------------------------------------------------------------------------
-// Storage — save to backend/storage/images/<timestamp>-<originalname>
+// Storage — stage in backend/storage/temp/upload_<timestamp>_<random><ext>
+// The Image Storage Service moves the file to storage/images/<caseId>/ on persistence.
 // ---------------------------------------------------------------------------
+const getStagingDir = () => paths.TEMP_DIR || path.join(paths.STORAGE_ROOT, 'temp');
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, paths.IMAGES_DIR);
+    const dest = getStagingDir();
+    ensureDir(dest);
+    cb(null, dest);
   },
   filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    const unique = `upload_${Date.now()}_${Math.round(Math.random() * 1e8)}`;
     const ext    = path.extname(file.originalname).toLowerCase();
     cb(null, `${unique}${ext}`);
   },
 });
 
 // ---------------------------------------------------------------------------
-// File filter — only JPEG and PNG allowed
+// File filter — only JPEG and PNG allowed (MIME type + extension check)
 // ---------------------------------------------------------------------------
 const fileFilter = (_req, file, cb) => {
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
-  if (ALLOWED_TYPES.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
+  const mime = (file.mimetype || '').toLowerCase();
+  const ext  = path.extname(file.originalname || '').toLowerCase();
+
+  if (!ALLOWED_MIME_TYPES.includes(mime)) {
     const err = new Error(
-      `Unsupported file type: ${file.mimetype}. Only JPEG and PNG are accepted.`,
+      `Unsupported file type: '${mime || 'unknown'}'. Only JPEG and PNG image files are accepted.`,
     );
-    err.status = 415;
-    cb(err, false);
+    err.status = 400;
+    return cb(err, false);
   }
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    const err = new Error(
+      `Unsupported file extension: '${ext || 'none'}'. Only .jpg, .jpeg, and .png are accepted.`,
+    );
+    err.status = 400;
+    return cb(err, false);
+  }
+
+  cb(null, true);
 };
 
 // ---------------------------------------------------------------------------
-// Multer instance
+// Multer instance factory
 // ---------------------------------------------------------------------------
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 32 * 1024 * 1024, // 32 MB
-    files:    1,                  // single image per request
-  },
-});
+const getMaxUploadBytes = () => {
+  const mb = parseInt(process.env.MAX_IMAGE_UPLOAD_MB || env.MAX_IMAGE_UPLOAD_MB || '32', 10);
+  return (isNaN(mb) || mb <= 0 ? 32 : mb) * 1024 * 1024;
+};
 
-// Named export: use as  upload.single('image')  in routes
-module.exports = { upload };
+const createUploadInstance = () => {
+  return multer({
+    storage,
+    fileFilter,
+    limits: {
+      fileSize: getMaxUploadBytes(),
+      files:    1,
+    },
+  });
+};
+
+const upload = createUploadInstance();
+
+/**
+ * Express middleware wrapper for single fundus image upload.
+ * Intercepts MulterError and fileFilter errors, formatting clean JSON responses.
+ *
+ * @param {string} [fieldName='image']
+ * @returns {import('express').RequestHandler}
+ */
+const handleImageUpload = (fieldName = 'image') => {
+  return (req, res, next) => {
+    const maxMb = parseInt(process.env.MAX_IMAGE_UPLOAD_MB || env.MAX_IMAGE_UPLOAD_MB || '32', 10);
+    const uploader = multer({
+      storage,
+      fileFilter,
+      limits: {
+        fileSize: (isNaN(maxMb) || maxMb <= 0 ? 32 : maxMb) * 1024 * 1024,
+        files: 1,
+      },
+    }).single(fieldName);
+
+    uploader(req, res, (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE' || (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE')) {
+          return res.status(413).json({
+            status:  'error',
+            code:    413,
+            message: `File size exceeds the configured maximum limit of ${maxMb}MB`,
+          });
+        }
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({
+            status:  'error',
+            code:    400,
+            message: `File upload error: ${err.message}`,
+          });
+        }
+        const statusCode = err.status || err.statusCode || 400;
+        return res.status(statusCode).json({
+          status:  'error',
+          code:    statusCode,
+          message: err.message,
+        });
+      }
+      next();
+    });
+  };
+};
+
+module.exports = {
+  upload,
+  handleImageUpload,
+  ALLOWED_MIME_TYPES,
+  ALLOWED_EXTENSIONS,
+};

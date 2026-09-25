@@ -146,11 +146,12 @@ describe('NETRA-DR Module 2 — RBAC Tests', () => {
   });
 
   // Test 1b — Technician accessing case listing
-  test('1b. Technician → GET /api/cases (technician-authorized) → allowed (501 stub)', async () => {
+  test('1b. Technician → GET /api/cases (technician-authorized) → allowed', async () => {
     const res = await fetch(`${baseUrl}/api/cases`, {
       headers: { Authorization: `Bearer ${technicianToken}` },
     });
-    assert.strictEqual(res.status, 501);
+    // Allowed by authorize() middleware (either 200 implemented or 501 stub)
+    assert.ok(res.status === 200 || res.status === 501, `Expected 200 or 501 but got ${res.status}`);
   });
 
   // --------------------------------------------------------------------------

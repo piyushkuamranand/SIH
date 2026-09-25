@@ -20,15 +20,50 @@ const ensureDir = (dirPath) => {
 };
 
 /**
- * Delete a file safely (no error if it doesn't exist).
- * @param {string} filePath  Absolute path to file
+ * Delete a file or directory safely (no error if it doesn't exist).
+ * Recursively deletes directories if a directory path is passed.
+ * @param {string} targetPath  Absolute path to file or directory
  */
-const safeUnlink = (filePath) => {
+const safeUnlink = (targetPath) => {
   try {
-    fs.unlinkSync(filePath);
+    if (!targetPath || typeof targetPath !== 'string') return;
+    if (fs.existsSync(targetPath)) {
+      const stat = fs.statSync(targetPath);
+      if (stat.isDirectory()) {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(targetPath);
+      }
+    }
   } catch (_err) {
-    // ignore ENOENT
+    // ignore ENOENT and deletion errors
   }
 };
 
-module.exports = { ensureDir, safeUnlink };
+/**
+ * Check if a file exists synchronously.
+ * @param {string} filePath  Absolute path to file
+ * @returns {boolean}
+ */
+const fileExists = (filePath) => {
+  try {
+    return fs.existsSync(filePath);
+  } catch (_err) {
+    return false;
+  }
+};
+
+/**
+ * Get file stats safely.
+ * @param {string} filePath  Absolute path to file
+ * @returns {fs.Stats|null}
+ */
+const getFileStats = (filePath) => {
+  try {
+    return fs.statSync(filePath);
+  } catch (_err) {
+    return null;
+  }
+};
+
+module.exports = { ensureDir, safeUnlink, fileExists, getFileStats };

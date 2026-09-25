@@ -23,6 +23,7 @@ const paths = {
   BACKEND_ROOT,
   STORAGE_ROOT:   path.join(BACKEND_ROOT, 'storage'),
   IMAGES_DIR:     path.join(BACKEND_ROOT, 'storage', 'images'),
+  TEMP_DIR:       path.join(BACKEND_ROOT, 'storage', 'temp'),
   MASKS_DIR:      path.join(BACKEND_ROOT, 'storage', 'masks'),
   HEATMAPS_DIR:   path.join(BACKEND_ROOT, 'storage', 'heatmaps'),
   REPORTS_DIR:    path.join(BACKEND_ROOT, 'storage', 'reports'),

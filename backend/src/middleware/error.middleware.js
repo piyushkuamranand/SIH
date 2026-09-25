@@ -19,7 +19,12 @@ const logger = require('../utils/logger');
  * @param {import('express').NextFunction} _next  (must be declared even if unused)
  */
 const errorHandler = (err, req, res, _next) => {
-  const status  = err.status || err.statusCode || 500;
+  let status  = err.status || err.statusCode || 500;
+  if (err.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE') {
+    status = 413;
+  } else if (err.name === 'MulterError') {
+    status = 400;
+  }
   const message = err.message || 'Internal Server Error';
 
   // Log the full stack in development; just the message in production
