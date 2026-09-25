@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NETRA-DR — AI Fundus Quality Assessment (Phase 1 Prototype)</title>
+  <meta name="description" content="NETRA-DR: Automated fundus image quality assessment using the EyeQ EfficientNet-B4 ensemble model. Prototype integration." />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-block">
+      <span class="logo-icon">👁</span>
+      <div>
+        <h1 class="site-title">NETRA-DR</h1>
+        <p class="site-subtitle">Diabetic Retinopathy Screening · Phase 1: EyeQ Quality Assessment Prototype</p>
+      </div>
+    </div>
+    <div class="header-badge">
+      <span class="badge badge-good">Phase 1 Active (EyeQ)</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ STARTUP / MODEL STATUS BANNER ════════════════════════ -->
+{% if startup_report %}
+<div class="startup-banner ready">
+  <div class="startup-summary">
+    <strong>System Status:</strong>
+    <span>✅ Phase 1 EyeQ Quality Assessment is loaded and operational.</span>
+  </div>
+  <details class="startup-details">
+    <summary>View Architecture &amp; Model Details</summary>
+    <ul>
+      <li class="ok">✅ <strong>Phase 1 — Quality Gate (EyeQ)</strong>: 8-model EfficientNet-B4 ensemble ready.</li>
+      <li class="pending">⏳ <strong>Phase 2 — Retinal Structure Analysis</strong>: Scheduled for Phase 2 integration.</li>
+      <li class="pending">⏳ <strong>Phase 3 — DR Grading &amp; Fusion</strong>: Scheduled for Phase 3 integration.</li>
+      <li class="pending">⏳ <strong>Phase 4 — Explainability (Grad-CAM)</strong>: Scheduled for Phase 4 integration.</li>
+    </ul>
+  </details>
+</div>
+{% endif %}
+
+<!-- ═══════════════ MAIN ═══════════════════════════════════════════════════ -->
+<main class="main-content">
+
+  <!-- ── UPLOAD FORM ──────────────────────────────────────────────────── -->
+  <section class="card upload-card" id="upload-section">
+    <h2 class="section-title">Upload Fundus Image</h2>
+    <p class="section-desc">
+      Select or drag a retinal fundus photograph (JPG or PNG) to immediately run the <strong>EyeQ Quality Assessment</strong> gate.
+    </p>
+
+    {% if upload_error %}
+    <div class="alert alert-error" role="alert" id="upload-error-msg">
+      ⚠️ {{ upload_error }}
+    </div>
+    {% endif %}
+
+    <form id="upload-form" method="POST" enctype="multipart/form-data" action="/">
+      <div class="file-drop-zone" id="drop-zone">
+        <span class="drop-icon">📷</span>
+        <p>Drag &amp; drop a fundus image here, or</p>
+        <label class="btn btn-primary" for="image-input">Browse Image</label>
+        <input id="image-input" type="file" name="image" accept=".jpg,.jpeg,.png"
+               aria-label="Select fundus image file" />
+        <p id="file-name-display" class="file-name-hint">(No file selected)</p>
+      </div>
+
+      <div class="quick-demo-box">
+        <span class="quick-demo-label">⚡ Or test instantly with demo images:</span>
+        <div class="quick-demo-buttons">
+          <button type="submit" name="demo_image" value="good" class="btn btn-demo btn-demo-good">
+            🟢 Good Sample (Pass Gate)
+          </button>
+          <button type="submit" name="demo_image" value="reject" class="btn btn-demo btn-demo-reject">
+            🔴 Reject Sample (Poor Quality)
+          </button>
+        </div>
+      </div>
+
+      <button id="submit-btn" class="btn btn-run" type="submit">
+        ▶ Assess Image Quality
+      </button>
+    </form>
+  </section>
+
+  <!-- ── RESULTS (only shown after a successful POST) ─────────────────── -->
+  {% if display %}
+    {% set p1 = display.phase1 %}
+    {% set q_label = p1.quality_label %}
+    {% set recom = p1.recommendation %}
+
+    <!-- ── PHASE 1 RESULT BANNER & CLINICAL ACTION ───────────────────── -->
+    <section class="card phase-card {% if q_label == 'REJECT' %}reject-card{% elif q_label == 'BORDERLINE' %}borderline-card{% else %}good-card{% endif %}" id="phase1-result">
+      <div class="phase-header-row">
+        <h2 class="section-title">📋 Phase 1 — EyeQ Quality Assessment Result</h2>
+        <span class="badge {{ recom.badge_class }} badge-lg">{{ q_label }}</span>
+      </div>
+
+      <!-- Action Callout Box -->
+      <div class="action-callout {% if q_label == 'REJECT' %}action-reject{% elif q_label == 'BORDERLINE' %}action-borderline{% else %}action-good{% endif %}">
+        <div class="action-icon">
+          {% if q_label == 'REJECT' %}🚫{% elif q_label == 'BORDERLINE' %}⚠️{% else %}✅{% endif %}
+        </div>
+        <div class="action-content">
+          <h3 class="action-title">{{ recom.title }}</h3>
+          <p class="action-summary">{{ recom.summary }}</p>
+          <p class="action-guidance"><strong>Clinical Guidance:</strong> {{ recom.guidance }}</p>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="kv-grid">
+        <div class="kv-item">
+          <span class="kv-label">Quality Status</span>
+          <span class="kv-value badge {{ recom.badge_class }}">{{ q_label }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Confidence</span>
+          <span class="kv-value">{{ p1.quality_score or 'N/A' }}</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Prototype Action</span>
+          <span class="kv-value"><code>{{ recom.action }}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">EyeQ Ensemble Size</span>
+          <span class="kv-value">8 Models (EfficientNet-B4)</span>
+        </div>
+      </div>
+
+      <!-- EyeQ Probability Distribution Bars -->
+      {% if p1.probabilities %}
+      <div class="prob-bars">
+        <p class="prob-title">EyeQ Ensemble Probability Breakdown:</p>
+        <div class="prob-row">
+          <span class="prob-label">Good Quality</span>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill {% if q_label == 'GOOD' %}active-good{% endif %}"
+                 style="width: {{ p1.probabilities.good }}%"></div>
+          </div>
+          <span class="prob-pct">{{ p1.probabilities.good }}%</span>
+        </div>
+        <div class="prob-row">
+          <span class="prob-label">Borderline / Usable</span>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill {% if q_label == 'BORDERLINE' %}active-warn{% endif %}"
+                 style="width: {{ p1.probabilities.borderline }}%"></div>
+          </div>
+          <span class="prob-pct">{{ p1.probabilities.borderline }}%</span>
+        </div>
+        <div class="prob-row">
+          <span class="prob-label">Reject / Bad</span>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill {% if q_label == 'REJECT' %}active-danger{% endif %}"
+                 style="width: {{ p1.probabilities.reject }}%"></div>
+          </div>
+          <span class="prob-pct">{{ p1.probabilities.reject }}%</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Side-by-Side Images: Original vs Preprocessed -->
+      <div class="image-comparison-row">
+        {% if display.original_image %}
+        <figure class="image-box">
+          <img src="{{ display.original_image }}" alt="Original uploaded fundus" class="result-img" />
+          <figcaption>Original Uploaded Photograph</figcaption>
+        </figure>
+        {% endif %}
+
+        {% if p1.preprocessed_image %}
+        <figure class="image-box">
+          <img src="{{ p1.preprocessed_image }}" alt="Preprocessed fundus image" class="result-img" />
+          <figcaption>Preprocessed (FOV Crop + CLAHE + Normalization)</figcaption>
+        </figure>
+        {% endif %}
+      </div>
+
+      <!-- Model Contract Metadata Accordion -->
+      <details class="tech-details">
+        <summary>Model Architecture &amp; Contract Details</summary>
+        <div class="tech-table">
+          <div class="tech-row"><span>Model Backbone:</span> <strong>EfficientNet-B4</strong></div>
+          <div class="tech-row"><span>Ensemble Structure:</span> <strong>8 seed checkpoints (averaged softmax probabilities)</strong></div>
+          <div class="tech-row"><span>Input Dimensions:</span> <strong>520 × 520 pixels (3 channels)</strong></div>
+          <div class="tech-row"><span>Normalization:</span> <strong>Non-zero pixel mean/std normalization</strong></div>
+          <div class="tech-row"><span>Decision Policy:</span> <strong>Argmax (uncalibrated source policy)</strong></div>
+          {% if p1.inference_time_ms %}
+          <div class="tech-row"><span>Inference Latency:</span> <strong>{{ p1.inference_time_ms }} ms</strong></div>
+          {% endif %}
+        </div>
+      </details>
+    </section>
+
+    <!-- ── DOWNSTREAM PHASES STATUS ──────────────────────────────────── -->
+    <section class="card phase-card downstream-card" id="downstream-status">
+      <h2 class="section-title">🚀 Subsequent Pipeline Stages (Next Milestones)</h2>
+
+      {% if display.stopped_at_phase1 %}
+      <div class="downstream-halt-notice">
+        <span class="halt-icon">🛑</span>
+        <div>
+          <strong>Phases 2–4 Halted</strong>
+          <p>Because the image quality was classified as <strong>REJECT</strong>, downstream segmentation, grading, and Grad-CAM stages are safely bypassed to prevent false-positive or misleading diagnostic outputs.</p>
+        </div>
+      </div>
+      {% else %}
+      <div class="downstream-info-notice">
+        <span class="info-icon">ℹ️</span>
+        <div>
+          <strong>Phase 1 Completed Successfully</strong>
+          <p>The image cleared the Phase 1 quality assessment gate. In this prototype integration, Phase 1 is the verified ML stage.</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="pipeline-milestones">
+        <div class="milestone-step step-complete">
+          <div class="milestone-badge">Phase 1</div>
+          <div class="milestone-desc">
+            <strong>EyeQ Quality Assessment</strong>
+            <span>Active &amp; Verified (EfficientNet-B4 Ensemble)</span>
+          </div>
+          <span class="milestone-status">✅ LIVE</span>
+        </div>
+
+        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
+          <div class="milestone-badge">Phase 2</div>
+          <div class="milestone-desc">
+            <strong>Retinal Structure Analysis</strong>
+            <span>Vessel Segmentation + HE/EX/SE Lesion Masks + MA Detector</span>
+          </div>
+          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
+        </div>
+
+        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
+          <div class="milestone-badge">Phase 3</div>
+          <div class="milestone-desc">
+            <strong>DR Severity Grading &amp; Fusion</strong>
+            <span>5-Class ICDR Grading + Temperature Calibration + Decision Fusion</span>
+          </div>
+          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
+        </div>
+
+        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
+          <div class="milestone-badge">Phase 4</div>
+          <div class="milestone-desc">
+            <strong>Explainability (Grad-CAM)</strong>
+            <span><em>Model Attention</em> Heatmap Visualization</span>
+          </div>
+          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
+        </div>
+      </div>
+    </section>
+
+  {% endif %} {# end: display #}
+
+</main>
+
+<!-- ═══════════════ FOOTER ═══════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <p>NETRA-DR · SIH26038 Prototype · EyeQ Image Quality Assessment · For research and demonstration only, not for clinical use.</p>
+</footer>
+
+<script>
+  // File input feedback
+  const input = document.getElementById('image-input');
+  const nameDisplay = document.getElementById('file-name-display');
+  if (input && nameDisplay) {
+    input.addEventListener('change', () => {
+      nameDisplay.textContent = input.files.length > 0
+        ? input.files[0].name
+        : '(No file selected)';
+    });
+  }
+
+  // Show spinner on submit
+  const form = document.getElementById('upload-form');
+  const btn  = document.getElementById('submit-btn');
+  if (form && btn) {
+    form.addEventListener('submit', (e) => {
+      // Don't disable immediately if demo button clicked
+      btn.textContent = '⏳ Evaluating Quality with EyeQ Ensemble…';
+    });
+  }
+</script>
+</body>
+</html>

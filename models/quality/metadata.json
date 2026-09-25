@@ -1,0 +1,22 @@
+{
+  "model_name": "EyeQ-EfficientNetB4",
+  "model_version": "1.0.0",
+  "input_size": [520, 520],
+  "channels": 3,
+  "normalization": {
+    "type": "non-zero pixel mean/std",
+    "mean": [0.0, 0.0, 0.0],
+    "std": [1.0, 1.0, 1.0]
+  },
+  "model_file": "../../external/EyeQ/checkpoints/efficientnet/0_seed_42/best_loss_checkpoint.pth",
+  "framework": "pytorch",
+  "training_dataset": "EyePACS quality subset (EyeQ)",
+  "preprocessing": "Resize to 520x520, non-zero pixel mean/std normalization",
+  "eval_metrics": {
+    "ensemble_size": 8,
+    "architecture": "EfficientNet-B4 ensemble (8 seeds)"
+  },
+  "class_labels": ["GOOD", "BORDERLINE", "REJECT"],
+  "output_format": "probabilities",
+  "threshold": 0.5
+}

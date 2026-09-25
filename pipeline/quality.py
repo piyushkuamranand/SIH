@@ -1,8 +1,9 @@
 """
 NETRA-DR: Phase 1 — IQA (Image Quality Assessment) Gate.
 
-Loads the quality-gate classifier via the model contract, runs ONNX inference on
-the raw fundus image, and returns the quality decision together with the preprocessed
+Loads the quality-gate classifier via the model contract, runs inference on
+the raw fundus image (supporting both PyTorch EyeQ ensemble and ONNX backends),
+and returns the quality decision together with the preprocessed
 image produced by pipeline.preprocessing.preprocess().
 
 Contract schema required for models/quality/metadata.json (type: classifier):
@@ -10,12 +11,13 @@ Contract schema required for models/quality/metadata.json (type: classifier):
     framework, training_dataset, preprocessing, eval_metrics,
     class_labels, output_format, threshold
 
-Raises a clear "model artifact missing" error when the ONNX file is not yet
+Raises a clear "model artifact missing" error when the model artifact is not yet
 present — it never fabricates a result.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
@@ -29,9 +31,11 @@ from pipeline.contract import (
 )
 from pipeline.preprocessing import preprocess
 
+logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Internal helpers for ONNX inference (backwards compatibility & fallback)
 # ---------------------------------------------------------------------------
 
 def _prepare_model_input(
@@ -41,20 +45,6 @@ def _prepare_model_input(
     """
     Resize and normalize the raw image specifically for the quality model,
     using the model contract's own input_size and normalization spec.
-
-    The contract is authoritative — these values may differ from the general
-    preprocessing config used for downstream phases.
-
-    Args:
-        image_path: Path to the raw fundus image.
-        contract:   Validated contract dict for the quality model.
-
-    Returns:
-        NCHW float32 numpy array ready for ONNX inference, shape (1, C, H, W).
-
-    Raises:
-        ValueError: If image loading or normalization parameters are invalid.
-        FileNotFoundError: If image_path does not exist.
     """
     import cv2
     from PIL import Image
@@ -72,7 +62,6 @@ def _prepare_model_input(
             f"Corrupted, invalid, or unsupported image file: {path}. Details: {exc}"
         ) from exc
 
-    # Resize to contract input_size [H, W]
     input_size: List[int] = contract["input_size"]
     if len(input_size) != 2:
         raise ValueError(
@@ -81,13 +70,11 @@ def _prepare_model_input(
     target_h, target_w = int(input_size[0]), int(input_size[1])
     resized = cv2.resize(raw_arr, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
 
-    # Normalize using contract spec
     norm_spec = contract["normalization"]
     if isinstance(norm_spec, dict):
         norm_mean = norm_spec.get("mean", [0.0, 0.0, 0.0])
         norm_std  = norm_spec.get("std",  [1.0, 1.0, 1.0])
     else:
-        # Fallback: treat as simple [0, 1] scaling
         norm_mean = [0.0, 0.0, 0.0]
         norm_std  = [1.0, 1.0, 1.0]
 
@@ -96,8 +83,7 @@ def _prepare_model_input(
     std  = np.array(norm_std,  dtype=np.float32).reshape(1, 1, 3)
     img_float = (img_float - mean) / std
 
-    # HWC -> NCHW
-    img_nchw = np.transpose(img_float, (2, 0, 1))[np.newaxis, ...]  # (1, C, H, W)
+    img_nchw = np.transpose(img_float, (2, 0, 1))[np.newaxis, ...]
     return img_nchw.astype(np.float32)
 
 
@@ -105,19 +91,7 @@ def _run_onnx_inference(
     model_path: str,
     input_array: np.ndarray,
 ) -> np.ndarray:
-    """
-    Run ONNX inference and return the raw output array (probabilities or logits).
-
-    Args:
-        model_path:  Path to the .onnx model file.
-        input_array: NCHW float32 numpy array (1, C, H, W).
-
-    Returns:
-        1-D float32 numpy array of class scores for the single input.
-
-    Raises:
-        RuntimeError: If onnxruntime is not installed or inference fails.
-    """
+    """Run ONNX inference and return raw scores."""
     try:
         import onnxruntime as ort
     except ImportError as exc:
@@ -129,7 +103,6 @@ def _run_onnx_inference(
     session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
     input_name = session.get_inputs()[0].name
     outputs = session.run(None, {input_name: input_array})
-    # Expect outputs[0] shape (1, N) or (N,) for N classes
     raw = np.array(outputs[0], dtype=np.float32).flatten()
     return raw
 
@@ -155,29 +128,28 @@ def run_quality_gate(
 
     Steps:
     1. Load and validate the quality model contract.
-    2. Resolve the ONNX model path (raises ModelArtifactNotFoundError if absent).
-    3. Prepare model input from the raw image using contract input_size/normalization.
-    4. Run ONNX inference; map output to class_labels from the contract.
-    5. Independently call preprocessing.preprocess() to produce the downstream image.
+    2. Resolve the model path (raises ModelArtifactNotFoundError if absent).
+    3. Run quality inference (using EyeQ PyTorch ensemble or ONNX engine per contract).
+    4. Independently call preprocessing.preprocess() to produce the downstream image.
 
     Args:
         image_path:           Path to the raw fundus image (jpg / png).
-        model_dir:            Directory containing quality_model.onnx + metadata.json.
+        model_dir:            Directory containing quality model artifact + metadata.json.
                               Defaults to 'models/quality' (project-relative).
         preprocessing_config: Path to configs/preprocessing.json used for the downstream
                               preprocessed_image (independent of model input preparation).
 
     Returns:
         dict with keys:
-            quality_label      (str)  — one of the contract's class_labels
+            quality_label      (str)  — one of the contract's class_labels ("GOOD", "BORDERLINE", "REJECT")
             quality_score      (float)— confidence for the predicted class in [0, 1]
             preprocessed_image (np.ndarray) — float32 array from preprocessing.preprocess()
+            probabilities      (dict, optional) — class probability breakdown
 
     Raises:
-        FileNotFoundError:          If metadata.json is missing from model_dir.
+        FileNotFoundError:          If metadata.json is missing from model_dir or image not found.
         ModelContractError:         If metadata.json is invalid or incomplete.
-        ModelArtifactNotFoundError: If the ONNX model file is not yet present.
-        FileNotFoundError:          If image_path does not exist.
+        ModelArtifactNotFoundError: If the model file is not present.
         ValueError:                 If the image is corrupted or unreadable.
     """
     model_dir = Path(model_dir)
@@ -192,40 +164,58 @@ def run_quality_gate(
             f"(Original error: {exc})"
         ) from exc
 
-    # ---- 2. Resolve ONNX model path — fail loudly if absent ----
+    # ---- 2. Resolve model path — fail loudly if absent ----
     try:
         model_path = resolve_model_path(model_dir, contract)
     except ModelArtifactNotFoundError as exc:
         raise ModelArtifactNotFoundError(
             f"model artifact missing — Phase 1 cannot run: "
-            f"ONNX model file '{contract.get('model_file')}' not found in '{model_dir}'. "
-            f"Deliver the MATLAB-exported ONNX artifact to complete Phase 1. "
+            f"model file '{contract.get('model_file')}' not found in '{model_dir}'. "
             f"(Original error: {exc})"
         ) from exc
 
-    # ---- 3. Prepare model input (contract-driven, not config-driven) ----
-    model_input = _prepare_model_input(image_path, contract)
+    # Verify input image exists
+    img_path = Path(image_path)
+    if not img_path.is_file():
+        raise FileNotFoundError(f"Input image not found: {img_path}")
 
-    # ---- 4. ONNX inference ----
-    raw_scores = _run_onnx_inference(model_path, model_input)
-    probabilities = _softmax(raw_scores)
-    predicted_idx = int(np.argmax(probabilities))
+    # ---- 3. Inference based on contract framework ----
+    framework = str(contract.get("framework", "onnx")).lower()
 
-    class_labels: List[str] = contract["class_labels"]
-    if predicted_idx >= len(class_labels):
-        raise ValueError(
-            f"Model output index {predicted_idx} is out of range for "
-            f"class_labels {class_labels} (length {len(class_labels)})."
-        )
+    if framework == "pytorch":
+        from pipeline.quality_service import get_quality_service
+        service = get_quality_service()
+        pred = service.predict(img_path)
+        quality_label = pred["netra_label"]
+        quality_score = float(pred["confidence"])
+        probabilities = pred.get("netra_probabilities")
+    else:
+        # ONNX inference path
+        model_input = _prepare_model_input(img_path, contract)
+        raw_scores = _run_onnx_inference(model_path, model_input)
+        probs = _softmax(raw_scores)
+        predicted_idx = int(np.argmax(probs))
 
-    quality_label: str = class_labels[predicted_idx]
-    quality_score: float = float(probabilities[predicted_idx])
+        class_labels: List[str] = contract["class_labels"]
+        if predicted_idx >= len(class_labels):
+            raise ValueError(
+                f"Model output index {predicted_idx} is out of range for "
+                f"class_labels {class_labels} (length {len(class_labels)})."
+            )
 
-    # ---- 5. Preprocessed image for downstream phases (TASK-003 path) ----
-    preprocessed_image: np.ndarray = preprocess(image_path, config_path=preprocessing_config)
+        quality_label = class_labels[predicted_idx]
+        quality_score = float(probs[predicted_idx])
+        probabilities = {
+            class_labels[i].lower(): float(probs[i])
+            for i in range(len(class_labels))
+        }
+
+    # ---- 4. Preprocessed image for downstream phases (TASK-003 path) ----
+    preprocessed_image: np.ndarray = preprocess(img_path, config_path=preprocessing_config)
 
     return {
         "quality_label": quality_label,
         "quality_score": quality_score,
         "preprocessed_image": preprocessed_image,
+        "probabilities": probabilities,
     }
