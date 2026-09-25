@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NETRA-DR — AI Fundus Quality Assessment (Phase 1 Prototype)</title>
-  <meta name="description" content="NETRA-DR: Automated fundus image quality assessment using the EyeQ EfficientNet-B4 ensemble model. Prototype integration." />
+  <title>NETRA-DR — AI Diabetic Retinopathy Screening Pipeline (Phases 1–4)</title>
+  <meta name="description" content="NETRA-DR: End-to-end automated fundus screening pipeline featuring EyeQ quality gate, retinal vessel/lesion structure segmentation, ICDR severity grading with decision fusion, and Grad-CAM explainability." />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
@@ -16,42 +16,40 @@
       <span class="logo-icon">👁</span>
       <div>
         <h1 class="site-title">NETRA-DR</h1>
-        <p class="site-subtitle">Diabetic Retinopathy Screening · Phase 1: EyeQ Quality Assessment Prototype</p>
+        <p class="site-subtitle">Diabetic Retinopathy Screening · Phase 1: EyeQ Quality Assessment (Phases 1–4 Active)</p>
       </div>
     </div>
     <div class="header-badge">
-      <span class="badge badge-good">Phase 1 Active (EyeQ)</span>
+      <span class="badge badge-good">All 4 Phases Live &amp; Operational</span>
     </div>
   </div>
 </header>
 
-<!-- ═══════════════ STARTUP / MODEL STATUS BANNER ════════════════════════ -->
-{% if startup_report %}
+<!-- ═══════════════ STARTUP / PIPELINE STATUS BANNER ════════════════════════ -->
 <div class="startup-banner ready">
   <div class="startup-summary">
-    <strong>System Status:</strong>
-    <span>✅ Phase 1 EyeQ Quality Assessment is loaded and operational.</span>
+    <strong>Diagnostic Pipeline Architecture:</strong>
+    <span>✅ Fully operational 4-stage pipeline with strict quality &amp; evidence gating.</span>
   </div>
   <details class="startup-details">
-    <summary>View Architecture &amp; Model Details</summary>
+    <summary>View Pipeline Stages &amp; Verified Models</summary>
     <ul>
-      <li class="ok">✅ <strong>Phase 1 — Quality Gate (EyeQ)</strong>: 8-model EfficientNet-B4 ensemble ready.</li>
-      <li class="pending">⏳ <strong>Phase 2 — Retinal Structure Analysis</strong>: Scheduled for Phase 2 integration.</li>
-      <li class="pending">⏳ <strong>Phase 3 — DR Grading &amp; Fusion</strong>: Scheduled for Phase 3 integration.</li>
-      <li class="pending">⏳ <strong>Phase 4 — Explainability (Grad-CAM)</strong>: Scheduled for Phase 4 integration.</li>
+      <li class="ok">✅ <strong>Phase 1 — EyeQ Quality Assessment Gate</strong>: 8-model EfficientNet-B4 ensemble (Good / Borderline / Reject).</li>
+      <li class="ok">✅ <strong>Phase 2 — Retinal Structure Analysis</strong>: FR-UNet vessel segmentation + fundus-lesions-toolkit (HE, EX, SE, MA).</li>
+      <li class="ok">✅ <strong>Phase 3 — DR Grading &amp; Decision Fusion</strong>: drdetect EfficientNet-B0 (ICDR 0–4) + Calibration + 5-Input Fusion.</li>
+      <li class="ok">✅ <strong>Phase 4 — Explainability &amp; Consistency</strong>: Grad-CAM (<em>model attention</em>) vs detected evidence with IoU audit.</li>
     </ul>
   </details>
 </div>
-{% endif %}
 
-<!-- ═══════════════ MAIN ═══════════════════════════════════════════════════ -->
+<!-- ═══════════════ MAIN CONTENT ══════════════════════════════════════════ -->
 <main class="main-content">
 
-  <!-- ── UPLOAD FORM ──────────────────────────────────────────────────── -->
+  <!-- ── 1. UPLOAD SECTION ───────────────────────────────────────────── -->
   <section class="card upload-card" id="upload-section">
     <h2 class="section-title">Upload Fundus Image</h2>
     <p class="section-desc">
-      Select or drag a retinal fundus photograph (JPG or PNG) to immediately run the <strong>EyeQ Quality Assessment</strong> gate.
+      Upload a fundus image (JPG or PNG) or test instantly with benchmark samples to execute the 4-phase diagnostic screening pipeline.
     </p>
 
     {% if upload_error %}
@@ -71,45 +69,59 @@
       </div>
 
       <div class="quick-demo-box">
-        <span class="quick-demo-label">⚡ Or test instantly with demo images:</span>
+        <span class="quick-demo-label">⚡ Quick-test with benchmark samples:</span>
         <div class="quick-demo-buttons">
           <button type="submit" name="demo_image" value="good" class="btn btn-demo btn-demo-good">
-            🟢 Good Sample (Pass Gate)
+            🟢 Good Sample (Pass Quality Gate)
           </button>
           <button type="submit" name="demo_image" value="reject" class="btn btn-demo btn-demo-reject">
-            🔴 Reject Sample (Poor Quality)
+            🔴 Reject Sample (Poor Quality Gate Block)
           </button>
         </div>
       </div>
 
-      <button id="submit-btn" class="btn btn-run" type="submit">
-        ▶ Assess Image Quality
-      </button>
+      <div class="upload-actions">
+        <button id="submit-step-btn" class="btn btn-run" type="submit" name="run_mode" value="step">
+          ▶ Step 1: Assess Image Quality
+        </button>
+        <button id="submit-full-btn" class="btn btn-secondary" type="submit" name="run_mode" value="full">
+          ⚡ Run Complete Pipeline (Phases 1–4)
+        </button>
+      </div>
     </form>
   </section>
 
-  <!-- ── RESULTS (only shown after a successful POST) ─────────────────── -->
+  <!-- ── 2. RESULTS PIPELINE CONTAINER ─────────────────────────────────── -->
   {% if display %}
+    {% set analysis_id = display.analysis_id %}
     {% set p1 = display.phase1 %}
     {% set q_label = p1.quality_label %}
+    {% set is_reject = (q_label == 'REJECT') %}
     {% set recom = p1.recommendation %}
 
-    <!-- ── PHASE 1 RESULT BANNER & CLINICAL ACTION ───────────────────── -->
-    <section class="card phase-card {% if q_label == 'REJECT' %}reject-card{% elif q_label == 'BORDERLINE' %}borderline-card{% else %}good-card{% endif %}" id="phase1-result">
+    <!-- Hidden state for AJAX coordination -->
+    <input type="hidden" id="current-analysis-id" value="{{ analysis_id }}" />
+    <input type="hidden" id="current-quality-tier" value="{{ q_label }}" />
+
+    <!-- ── PHASE 1 RESULT ──────────────────────────────────────────────── -->
+    <section class="card phase-card {% if is_reject %}reject-card{% elif q_label == 'BORDERLINE' %}borderline-card{% else %}good-card{% endif %}" id="phase1-result">
       <div class="phase-header-row">
-        <h2 class="section-title">📋 Phase 1 — EyeQ Quality Assessment Result</h2>
-        <span class="badge {{ recom.badge_class }} badge-lg">{{ q_label }}</span>
+        <div>
+          <span class="phase-tag">PHASE 1</span>
+          <h2 class="section-title">📋 Phase 1 — EyeQ Quality Assessment Result</h2>
+        </div>
+        <span class="badge {{ recom.badge_class }} badge-lg" id="p1-badge">{{ q_label }}</span>
       </div>
 
       <!-- Action Callout Box -->
-      <div class="action-callout {% if q_label == 'REJECT' %}action-reject{% elif q_label == 'BORDERLINE' %}action-borderline{% else %}action-good{% endif %}">
+      <div class="action-callout {% if is_reject %}action-reject{% elif q_label == 'BORDERLINE' %}action-borderline{% else %}action-good{% endif %}">
         <div class="action-icon">
-          {% if q_label == 'REJECT' %}🚫{% elif q_label == 'BORDERLINE' %}⚠️{% else %}✅{% endif %}
+          {% if is_reject %}🚫{% elif q_label == 'BORDERLINE' %}⚠️{% else %}✅{% endif %}
         </div>
         <div class="action-content">
           <h3 class="action-title">{{ recom.title }}</h3>
           <p class="action-summary">{{ recom.summary }}</p>
-          <p class="action-guidance"><strong>Clinical Guidance:</strong> {{ recom.guidance }}</p>
+          <p class="action-guidance"><strong>Clinical Protocol:</strong> {{ recom.guidance }}</p>
         </div>
       </div>
 
@@ -120,23 +132,23 @@
           <span class="kv-value badge {{ recom.badge_class }}">{{ q_label }}</span>
         </div>
         <div class="kv-item">
-          <span class="kv-label">Confidence</span>
+          <span class="kv-label">Quality Score</span>
           <span class="kv-value">{{ p1.quality_score or 'N/A' }}</span>
         </div>
         <div class="kv-item">
-          <span class="kv-label">Prototype Action</span>
+          <span class="kv-label">Gate Action</span>
           <span class="kv-value"><code>{{ recom.action }}</code></span>
         </div>
         <div class="kv-item">
-          <span class="kv-label">EyeQ Ensemble Size</span>
-          <span class="kv-value">8 Models (EfficientNet-B4)</span>
+          <span class="kv-label">Ensemble</span>
+          <span class="kv-value">8 EfficientNet-B4 Models</span>
         </div>
       </div>
 
       <!-- EyeQ Probability Distribution Bars -->
       {% if p1.probabilities %}
       <div class="prob-bars">
-        <p class="prob-title">EyeQ Ensemble Probability Breakdown:</p>
+        <p class="prob-title">EyeQ Quality Class Probabilities:</p>
         <div class="prob-row">
           <span class="prob-label">Good Quality</span>
           <div class="prob-bar-bg">
@@ -164,7 +176,7 @@
       </div>
       {% endif %}
 
-      <!-- Side-by-Side Images: Original vs Preprocessed -->
+      <!-- Side-by-Side Images -->
       <div class="image-comparison-row">
         {% if display.original_image %}
         <figure class="image-box">
@@ -175,118 +187,614 @@
 
         {% if p1.preprocessed_image %}
         <figure class="image-box">
-          <img src="{{ p1.preprocessed_image }}" alt="Preprocessed fundus image" class="result-img" />
-          <figcaption>Preprocessed (FOV Crop + CLAHE + Normalization)</figcaption>
+          <img src="{{ p1.preprocessed_image }}" alt="Preprocessed fundus image" class="result-img" id="preprocessed-fundus-img" />
+          <figcaption>Preprocessed (FOV Crop + CLAHE Normalization)</figcaption>
         </figure>
         {% endif %}
       </div>
-
-      <!-- Model Contract Metadata Accordion -->
-      <details class="tech-details">
-        <summary>Model Architecture &amp; Contract Details</summary>
-        <div class="tech-table">
-          <div class="tech-row"><span>Model Backbone:</span> <strong>EfficientNet-B4</strong></div>
-          <div class="tech-row"><span>Ensemble Structure:</span> <strong>8 seed checkpoints (averaged softmax probabilities)</strong></div>
-          <div class="tech-row"><span>Input Dimensions:</span> <strong>520 × 520 pixels (3 channels)</strong></div>
-          <div class="tech-row"><span>Normalization:</span> <strong>Non-zero pixel mean/std normalization</strong></div>
-          <div class="tech-row"><span>Decision Policy:</span> <strong>Argmax (uncalibrated source policy)</strong></div>
-          {% if p1.inference_time_ms %}
-          <div class="tech-row"><span>Inference Latency:</span> <strong>{{ p1.inference_time_ms }} ms</strong></div>
-          {% endif %}
-        </div>
-      </details>
     </section>
 
-    <!-- ── DOWNSTREAM PHASES STATUS ──────────────────────────────────── -->
-    <section class="card phase-card downstream-card" id="downstream-status">
-      <h2 class="section-title">🚀 Subsequent Pipeline Stages (Next Milestones)</h2>
-
-      {% if display.stopped_at_phase1 %}
+    <!-- ── QUALITY GATE HALT NOTICE (if Reject) ────────────────────────── -->
+    {% if is_reject %}
+    <section class="card phase-card reject-card" id="reject-block-notice">
       <div class="downstream-halt-notice">
         <span class="halt-icon">🛑</span>
         <div>
-          <strong>Phases 2–4 Halted</strong>
-          <p>Because the image quality was classified as <strong>REJECT</strong>, downstream segmentation, grading, and Grad-CAM stages are safely bypassed to prevent false-positive or misleading diagnostic outputs.</p>
-        </div>
-      </div>
-      {% else %}
-      <div class="downstream-info-notice">
-        <span class="info-icon">ℹ️</span>
-        <div>
-          <strong>Phase 1 Completed Successfully</strong>
-          <p>The image cleared the Phase 1 quality assessment gate. In this prototype integration, Phase 1 is the verified ML stage.</p>
-        </div>
-      </div>
-      {% endif %}
-
-      <div class="pipeline-milestones">
-        <div class="milestone-step step-complete">
-          <div class="milestone-badge">Phase 1</div>
-          <div class="milestone-desc">
-            <strong>EyeQ Quality Assessment</strong>
-            <span>Active &amp; Verified (EfficientNet-B4 Ensemble)</span>
-          </div>
-          <span class="milestone-status">✅ LIVE</span>
-        </div>
-
-        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
-          <div class="milestone-badge">Phase 2</div>
-          <div class="milestone-desc">
-            <strong>Retinal Structure Analysis</strong>
-            <span>Vessel Segmentation + HE/EX/SE Lesion Masks + MA Detector</span>
-          </div>
-          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
-        </div>
-
-        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
-          <div class="milestone-badge">Phase 3</div>
-          <div class="milestone-desc">
-            <strong>DR Severity Grading &amp; Fusion</strong>
-            <span>5-Class ICDR Grading + Temperature Calibration + Decision Fusion</span>
-          </div>
-          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
-        </div>
-
-        <div class="milestone-step {% if display.stopped_at_phase1 %}step-bypassed{% else %}step-pending{% endif %}">
-          <div class="milestone-badge">Phase 4</div>
-          <div class="milestone-desc">
-            <strong>Explainability (Grad-CAM)</strong>
-            <span><em>Model Attention</em> Heatmap Visualization</span>
-          </div>
-          <span class="milestone-status">{% if display.stopped_at_phase1 %}BYPASSED{% else %}UPCOMING{% endif %}</span>
+          <h3 class="section-title" style="color: var(--danger);">Phases 2–4 Halted (Phases 2, 3, and 4 Strictly Gated &amp; Blocked)</h3>
+          <p>
+            Because the image quality was classified as <strong>REJECT</strong>, downstream segmentation, grading, and explainability stages are hard-blocked to prevent false-positive or misleading diagnostic outputs.
+          </p>
+          <p class="action-guidance" style="margin-top:0.5rem;">
+            Please recapture the fundus photograph adhering to proper lighting, dilation, and fixation protocols.
+          </p>
         </div>
       </div>
     </section>
+    {% else %}
 
-  {% endif %} {# end: display #}
+    <!-- ── PHASE 2: RETINAL STRUCTURE ANALYSIS ─────────────────────────── -->
+    {% set p2 = display.phase2 %}
+    <section class="card phase-card" id="phase2-section">
+      <div class="phase-header-row">
+        <div>
+          <span class="phase-tag">PHASE 2</span>
+          <h2 class="section-title">🔬 Retinal Structure Analysis</h2>
+        </div>
+        <div class="phase-control-buttons">
+          <button id="run-p2-btn" class="btn btn-action" onclick="runPhase2()">
+            {% if p2 %}🔄 Re-run Phase 2{% else %}▶ Run Phase 2 (Structure Analysis){% endif %}
+          </button>
+        </div>
+      </div>
+
+      <p class="section-desc">
+        Processes the <strong>preprocessed image</strong> from Phase 1. Performs FR-UNet vessel segmentation and multiclass lesion detection (Microaneurysms, Hemorrhages, Hard Exudates, and Soft Exudates).
+      </p>
+
+      <div id="p2-loading" class="phase-loading" style="display: none;">
+        <span class="spinner">⏳</span>
+        <p>Running FR-UNet vessel segmentation &amp; fundus-lesions-toolkit models…</p>
+      </div>
+
+      <div id="p2-content" class="phase-content-block" {% if not p2 %}style="display: none;"{% endif %}>
+        {% if p2 %}
+          <!-- Structure Metrics -->
+          <div class="kv-grid">
+            <div class="kv-item">
+              <span class="kv-label">Microaneurysms (MA)</span>
+              <span class="kv-value" id="p2-ma-count"><strong>{{ p2.ma_count }}</strong> detected</span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Hemorrhages (HE)</span>
+              <span class="kv-value" id="p2-he-status">
+                {% if p2.he_presence %}<span class="badge badge-reject">Present ({{ p2.he_area_fraction }})</span>{% else %}<span class="badge badge-good">None Detected</span>{% endif %}
+              </span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Hard Exudates (EX)</span>
+              <span class="kv-value" id="p2-ex-area">{{ p2.ex_area }} area</span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Thin Vessel Sensitivity</span>
+              <span class="kv-value">{{ p2.thin_vessel_sensitivity }}</span>
+            </div>
+          </div>
+
+          <!-- Quadrant Breakdown -->
+          <div class="quadrant-box">
+            <span class="kv-label">Hemorrhage Quadrant Distribution:</span>
+            <div class="quadrant-chips">
+              <span class="chip">Top-Left: {{ p2.he_quadrant_counts.TL }} px</span>
+              <span class="chip">Top-Right: {{ p2.he_quadrant_counts.TR }} px</span>
+              <span class="chip">Bottom-Left: {{ p2.he_quadrant_counts.BL }} px</span>
+              <span class="chip">Bottom-Right: {{ p2.he_quadrant_counts.BR }} px</span>
+            </div>
+          </div>
+
+          <!-- Overlays: Non-Merged Labeled Evidence -->
+          <div class="structure-overlays-grid">
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.vessel_overlay_uri }}" alt="Vessel segmentation overlay" class="result-img" id="p2-vessel-img" />
+              <figcaption>FR-UNet Vessel Tree Segmentation</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.ma_overlay_uri }}" alt="Microaneurysm candidates overlay" class="result-img" id="p2-ma-img" />
+              <figcaption>Microaneurysms (MA) Pinpoints ({{ p2.ma_count }})</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.he_overlay_uri }}" alt="Hemorrhages overlay" class="result-img" id="p2-he-img" />
+              <figcaption>Hemorrhages (HE) Mask</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.ex_overlay_uri }}" alt="Hard exudates overlay" class="result-img" id="p2-ex-img" />
+              <figcaption>Hard Exudates (EX) Mask</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.se_overlay_uri }}" alt="Soft exudates overlay" class="result-img" id="p2-se-img" />
+              <figcaption>Soft Exudates / Cotton-Wool Spots (SE)</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.composite_lesion_overlay_uri }}" alt="Composite lesion overlay" class="result-img" id="p2-composite-img" />
+              <figcaption>Composite Lesion Map (HE / EX / SE)</figcaption>
+            </figure>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- ── PHASE 3: DR SEVERITY GRADING & DECISION FUSION ──────────────── -->
+    {% set p3 = display.phase3 %}
+    <section class="card phase-card" id="phase3-section">
+      <div class="phase-header-row">
+        <div>
+          <span class="phase-tag">PHASE 3</span>
+          <h2 class="section-title">📊 DR Severity Grading &amp; Decision Fusion</h2>
+        </div>
+        <div class="phase-control-buttons">
+          <button id="run-p3-btn" class="btn btn-action" onclick="runPhase3()" {% if not p2 %}disabled title="Complete Phase 2 first"{% endif %}>
+            {% if p3 %}🔄 Re-run Phase 3{% else %}▶ Run Phase 3 (Grading &amp; Fusion){% endif %}
+          </button>
+        </div>
+      </div>
+
+      <p class="section-desc">
+        Executes the <strong>drdetect EfficientNet-B0</strong> grader, temperature calibration, and the <strong>5-input shallow decision fusion</strong> layer with quality-tier thresholds.
+      </p>
+
+      <div id="p3-loading" class="phase-loading" style="display: none;">
+        <span class="spinner">⏳</span>
+        <p>Running severity classification, calibration, and 5-input decision fusion…</p>
+      </div>
+
+      <div id="p3-content" class="phase-content-block" {% if not p3 %}style="display: none;"{% endif %}>
+        {% if p3 %}
+          <!-- Decision Callout -->
+          <div class="action-callout {% if p3.referable_decision == 'REFER' %}action-reject{% else %}action-good{% endif %}">
+            <div class="action-icon">
+              {% if p3.referable_decision == 'REFER' %}🚨{% else %}✅{% endif %}
+            </div>
+            <div class="action-content">
+              <h3 class="action-title" id="p3-decision-title">
+                Final Referral Decision: <span class="badge {% if p3.referable_decision == 'REFER' %}badge-reject{% else %}badge-good{% endif %} badge-lg">{{ p3.referable_decision }}</span>
+              </h3>
+              <p class="action-summary" id="p3-decision-summary">
+                Applied Threshold: <strong>{{ p3.threshold_applied }}</strong> ({{ p3.quality_tier }} Quality Tier). P(Grade &ge; 2) = <strong>{{ p3.referable_probability }}</strong>.
+              </p>
+              <p class="action-guidance" id="p3-decision-reason">
+                <strong>Fusion Rationale:</strong> {{ p3.reason }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Grading Metrics Grid -->
+          <div class="kv-grid">
+            <div class="kv-item">
+              <span class="kv-label">Predicted ICDR Severity</span>
+              <span class="kv-value" id="p3-severity-name"><strong>{{ p3.severity_name }}</strong></span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Calibrated Confidence</span>
+              <span class="kv-value" id="p3-confidence">{{ p3.confidence }} (T={{ p3.temperature }})</span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Grade-Alone Decision</span>
+              <span class="kv-value" id="p3-grade-alone"><code>{{ p3.grade_alone_decision }}</code></span>
+            </div>
+            <div class="kv-item">
+              <span class="kv-label">Applied Quality Tier</span>
+              <span class="kv-value">{{ p3.quality_tier }} (Cutoff: {{ p3.threshold_applied }})</span>
+            </div>
+          </div>
+
+          <!-- 5-Class Probability Distribution Bars -->
+          <div class="prob-bars">
+            <p class="prob-title">Calibrated ICDR Grade Distribution:</p>
+            {% set grade_names = ['Grade 0 (No DR)', 'Grade 1 (Mild)', 'Grade 2 (Moderate)', 'Grade 3 (Severe)', 'Grade 4 (PDR)'] %}
+            {% for i in range(5) %}
+            <div class="prob-row">
+              <span class="prob-label">{{ grade_names[i] }}</span>
+              <div class="prob-bar-bg">
+                <div class="prob-bar-fill {% if p3.severity_class == i %}active-good{% endif %}"
+                     style="width: {{ p3.calibrated_probabilities[i] }}%"></div>
+              </div>
+              <span class="prob-pct">{{ p3.calibrated_probabilities[i] }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- ── PHASE 4: EXPLAINABILITY & CONSISTENCY CHECK ─────────────────── -->
+    {% set p4 = display.phase4 %}
+    <section class="card phase-card" id="phase4-section">
+      <div class="phase-header-row">
+        <div>
+          <span class="phase-tag">PHASE 4</span>
+          <h2 class="section-title">💡 Grad-CAM Explainability &amp; Consistency Audit</h2>
+        </div>
+        <div class="phase-control-buttons">
+          <button id="run-p4-btn" class="btn btn-action" onclick="runPhase4()" {% if not p3 %}disabled title="Complete Phase 3 first"{% endif %}>
+            {% if p4 %}🔄 Re-run Phase 4{% else %}▶ Run Phase 4 (Grad-CAM &amp; Consistency){% endif %}
+          </button>
+        </div>
+      </div>
+
+      <p class="section-desc">
+        Extracts <strong>Grad-CAM model attention</strong> from the grading network for the predicted severity class and checks spatial overlap against <strong>detected lesion evidence</strong> from Phase 2.
+      </p>
+
+      <div id="p4-loading" class="phase-loading" style="display: none;">
+        <span class="spinner">⏳</span>
+        <p>Computing Grad-CAM class activation maps &amp; calculating IoU overlap…</p>
+      </div>
+
+      <div id="p4-content" class="phase-content-block" {% if not p4 %}style="display: none;"{% endif %}>
+        {% if p4 %}
+          <!-- Consistency Audit Notice -->
+          <div class="action-callout {% if p4.priority_human_review %}action-borderline{% else %}action-good{% endif %}">
+            <div class="action-icon">
+              {% if p4.priority_human_review %}⚠️{% else %}🎯{% endif %}
+            </div>
+            <div class="action-content">
+              <h3 class="action-title">
+                Attention-Evidence Consistency:
+                {% if p4.priority_human_review %}
+                  <span class="badge badge-borderline">Priority Human Review Flagged</span>
+                {% else %}
+                  <span class="badge badge-good">Consistent Model Attention</span>
+                {% endif %}
+              </h3>
+              <p class="action-summary">{{ p4.consistency_flag_reason }}</p>
+              <p class="action-guidance">
+                Heatmap-vs-HE IoU: <strong>{{ p4.iou_vs_he }}</strong> · Heatmap-vs-EX IoU: <strong>{{ p4.iou_vs_ex }}</strong> (Threshold: {{ p4.threshold_used }})
+              </p>
+            </div>
+          </div>
+
+          <!-- Side-by-Side Model Attention vs Detected Evidence (Strictly Non-Merged) -->
+          <div class="image-comparison-row">
+            <figure class="image-box">
+              <span class="evidence-badge label-model-attention">model attention</span>
+              <img src="{{ p4.heatmap_overlay_uri }}" alt="Grad-CAM model attention heatmap" class="result-img" id="p4-heatmap-img" />
+              <figcaption>Grad-CAM Model Attention (CNN Feature Activation)</figcaption>
+            </figure>
+
+            <figure class="image-box">
+              <span class="evidence-badge label-detected-evidence">detected evidence</span>
+              <img src="{{ p2.composite_lesion_overlay_uri if p2 else '' }}" alt="Detected lesion evidence overlay" class="result-img" id="p4-evidence-img" />
+              <figcaption>Phase 2 Detected Anatomical Evidence (HE / EX / SE / MA)</figcaption>
+            </figure>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {% endif %} {# end: if not is_reject #}
+
+  {% endif %} {# end: if display #}
 
 </main>
 
 <!-- ═══════════════ FOOTER ═══════════════════════════════════════════════ -->
 <footer class="site-footer">
-  <p>NETRA-DR · SIH26038 Prototype · EyeQ Image Quality Assessment · For research and demonstration only, not for clinical use.</p>
+  <p>NETRA-DR · SIH-26038 Automated Explainable Diabetic Retinopathy Screening · Research &amp; Clinical Prototype.</p>
 </footer>
 
+<!-- ═══════════════ CLIENT-SIDE JAVASCRIPT CONTROLLER ═════════════════════ -->
 <script>
-  // File input feedback
-  const input = document.getElementById('image-input');
-  const nameDisplay = document.getElementById('file-name-display');
-  if (input && nameDisplay) {
-    input.addEventListener('change', () => {
-      nameDisplay.textContent = input.files.length > 0
-        ? input.files[0].name
-        : '(No file selected)';
+  // Drop zone & file hint
+  const fileInput = document.getElementById('image-input');
+  const fileNameDisplay = document.getElementById('file-name-display');
+  if (fileInput && fileNameDisplay) {
+    fileInput.addEventListener('change', () => {
+      fileNameDisplay.textContent = fileInput.files.length > 0 ? fileInput.files[0].name : '(No file selected)';
     });
   }
 
-  // Show spinner on submit
-  const form = document.getElementById('upload-form');
-  const btn  = document.getElementById('submit-btn');
-  if (form && btn) {
-    form.addEventListener('submit', (e) => {
-      // Don't disable immediately if demo button clicked
-      btn.textContent = '⏳ Evaluating Quality with EyeQ Ensemble…';
+  // Submit button text handling
+  const uploadForm = document.getElementById('upload-form');
+  const submitStepBtn = document.getElementById('submit-step-btn');
+  const submitFullBtn = document.getElementById('submit-full-btn');
+  if (uploadForm) {
+    uploadForm.addEventListener('submit', (e) => {
+      const submitter = e.submitter;
+      if (submitter && submitter.id === 'submit-full-btn') {
+        submitFullBtn.textContent = '⏳ Executing Full 4-Phase Screening…';
+      } else if (submitter && submitter.id === 'submit-step-btn') {
+        submitStepBtn.textContent = '⏳ Evaluating Quality Gate (EyeQ)…';
+      }
     });
+  }
+
+  // Interactive Phase 2 AJAX handler
+  async function runPhase2() {
+    const analysisId = document.getElementById('current-analysis-id')?.value;
+    if (!analysisId) return alert('Session not found. Please upload or select an image.');
+
+    const loading = document.getElementById('p2-loading');
+    const content = document.getElementById('p2-content');
+    const btn = document.getElementById('run-p2-btn');
+
+    if (loading) loading.style.display = 'flex';
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/phase2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysis_id: analysisId }),
+      });
+      const data = await res.json();
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+
+      if (data.status !== 'success') {
+        alert('Phase 2 Error: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      renderPhase2(data.phase2);
+      // Unlock Phase 3 button
+      const p3Btn = document.getElementById('run-p3-btn');
+      if (p3Btn) {
+        p3Btn.disabled = false;
+        p3Btn.title = 'Run DR Severity Grading';
+      }
+    } catch (err) {
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+      alert('Network or execution error: ' + err);
+    }
+  }
+
+  function renderPhase2(p2) {
+    const content = document.getElementById('p2-content');
+    if (!content) return;
+    content.style.display = 'block';
+
+    content.innerHTML = `
+      <div class="kv-grid">
+        <div class="kv-item">
+          <span class="kv-label">Microaneurysms (MA)</span>
+          <span class="kv-value"><strong>${p2.ma_count}</strong> detected (${p2.ma_count_near_macula} near-macula)</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Hemorrhages (HE)</span>
+          <span class="kv-value">
+            ${p2.he_presence ? `<span class="badge badge-reject">Present (${p2.he_area_fraction})</span>` : `<span class="badge badge-good">None Detected</span>`}
+          </span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Hard Exudates (EX)</span>
+          <span class="kv-value">${p2.ex_area} area (${p2.ex_area_near_fovea} near-fovea)</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Thin Vessel Sensitivity</span>
+          <span class="kv-value">${p2.thin_vessel_sensitivity}</span>
+        </div>
+      </div>
+
+      <div class="quadrant-box">
+        <span class="kv-label">Hemorrhage Quadrant Distribution:</span>
+        <div class="quadrant-chips">
+          <span class="chip">Top-Left: ${p2.he_quadrant_counts.TL} px</span>
+          <span class="chip">Top-Right: ${p2.he_quadrant_counts.TR} px</span>
+          <span class="chip">Bottom-Left: ${p2.he_quadrant_counts.BL} px</span>
+          <span class="chip">Bottom-Right: ${p2.he_quadrant_counts.BR} px</span>
+        </div>
+      </div>
+
+      <div class="structure-overlays-grid">
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.vessel_overlay_uri}" alt="Vessel segmentation overlay" class="result-img" />
+          <figcaption>FR-UNet Vessel Tree Segmentation</figcaption>
+        </figure>
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.ma_overlay_uri}" alt="MA pinpoints" class="result-img" />
+          <figcaption>Microaneurysms (MA) Pinpoints (${p2.ma_count})</figcaption>
+        </figure>
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.he_overlay_uri}" alt="HE mask" class="result-img" />
+          <figcaption>Hemorrhages (HE) Mask</figcaption>
+        </figure>
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.ex_overlay_uri}" alt="EX mask" class="result-img" />
+          <figcaption>Hard Exudates (EX) Mask</figcaption>
+        </figure>
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.se_overlay_uri}" alt="SE mask" class="result-img" />
+          <figcaption>Soft Exudates / Cotton-Wool Spots (SE)</figcaption>
+        </figure>
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${p2.composite_lesion_overlay_uri}" alt="Composite lesion overlay" class="result-img" id="live-composite-evidence-img" />
+          <figcaption>Composite Lesion Map (HE / EX / SE)</figcaption>
+        </figure>
+      </div>
+    `;
+    const btn = document.getElementById('run-p2-btn');
+    if (btn) btn.textContent = '🔄 Re-run Phase 2';
+  }
+
+  // Interactive Phase 3 AJAX handler
+  async function runPhase3() {
+    const analysisId = document.getElementById('current-analysis-id')?.value;
+    if (!analysisId) return alert('Session not found.');
+
+    const loading = document.getElementById('p3-loading');
+    const content = document.getElementById('p3-content');
+    const btn = document.getElementById('run-p3-btn');
+
+    if (loading) loading.style.display = 'flex';
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/phase3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysis_id: analysisId }),
+      });
+      const data = await res.json();
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+
+      if (data.status !== 'success') {
+        alert('Phase 3 Error: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      renderPhase3(data.phase3);
+      // Unlock Phase 4 button
+      const p4Btn = document.getElementById('run-p4-btn');
+      if (p4Btn) {
+        p4Btn.disabled = false;
+        p4Btn.title = 'Run Grad-CAM Explainability';
+      }
+    } catch (err) {
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+      alert('Network error: ' + err);
+    }
+  }
+
+  function renderPhase3(p3) {
+    const content = document.getElementById('p3-content');
+    if (!content) return;
+    content.style.display = 'block';
+
+    const isRefer = p3.referable_decision === 'REFER';
+    const gradeNames = ['Grade 0 (No DR)', 'Grade 1 (Mild)', 'Grade 2 (Moderate)', 'Grade 3 (Severe)', 'Grade 4 (PDR)'];
+
+    let barsHtml = '';
+    for (let i = 0; i < 5; i++) {
+      const val = p3.calibrated_probabilities[i] || 0;
+      const isActive = p3.severity_class === i;
+      barsHtml += `
+        <div class="prob-row">
+          <span class="prob-label">${gradeNames[i]}</span>
+          <div class="prob-bar-bg">
+            <div class="prob-bar-fill ${isActive ? 'active-good' : ''}" style="width: ${val}%"></div>
+          </div>
+          <span class="prob-pct">${val}%</span>
+        </div>
+      `;
+    }
+
+    content.innerHTML = `
+      <div class="action-callout ${isRefer ? 'action-reject' : 'action-good'}">
+        <div class="action-icon">${isRefer ? '🚨' : '✅'}</div>
+        <div class="action-content">
+          <h3 class="action-title">
+            Final Referral Decision: <span class="badge ${isRefer ? 'badge-reject' : 'badge-good'} badge-lg">${p3.referable_decision}</span>
+          </h3>
+          <p class="action-summary">
+            Applied Threshold: <strong>${p3.threshold_applied}</strong> (${p3.quality_tier} Quality Tier). P(Grade &ge; 2) = <strong>${p3.referable_probability}</strong>.
+          </p>
+          <p class="action-guidance">
+            <strong>Fusion Rationale:</strong> ${p3.reason}
+          </p>
+        </div>
+      </div>
+
+      <div class="kv-grid">
+        <div class="kv-item">
+          <span class="kv-label">Predicted ICDR Severity</span>
+          <span class="kv-value"><strong>${p3.severity_name}</strong></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Calibrated Confidence</span>
+          <span class="kv-value">${p3.confidence} (T=${p3.temperature})</span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Grade-Alone Decision</span>
+          <span class="kv-value"><code>${p3.grade_alone_decision}</code></span>
+        </div>
+        <div class="kv-item">
+          <span class="kv-label">Applied Quality Tier</span>
+          <span class="kv-value">${p3.quality_tier} (Cutoff: ${p3.threshold_applied})</span>
+        </div>
+      </div>
+
+      <div class="prob-bars">
+        <p class="prob-title">Calibrated ICDR Grade Distribution:</p>
+        ${barsHtml}
+      </div>
+    `;
+    const btn = document.getElementById('run-p3-btn');
+    if (btn) btn.textContent = '🔄 Re-run Phase 3';
+  }
+
+  // Interactive Phase 4 AJAX handler
+  async function runPhase4() {
+    const analysisId = document.getElementById('current-analysis-id')?.value;
+    if (!analysisId) return alert('Session not found.');
+
+    const loading = document.getElementById('p4-loading');
+    const content = document.getElementById('p4-content');
+    const btn = document.getElementById('run-p4-btn');
+
+    if (loading) loading.style.display = 'flex';
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/phase4', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysis_id: analysisId }),
+      });
+      const data = await res.json();
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+
+      if (data.status !== 'success') {
+        alert('Phase 4 Error: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      renderPhase4(data.phase4);
+    } catch (err) {
+      if (loading) loading.style.display = 'none';
+      if (btn) btn.disabled = false;
+      alert('Network error: ' + err);
+    }
+  }
+
+  function renderPhase4(p4) {
+    const content = document.getElementById('p4-content');
+    if (!content) return;
+    content.style.display = 'block';
+
+    const evidenceImg = document.getElementById('live-composite-evidence-img') || document.getElementById('p2-composite-img');
+    const evidenceSrc = evidenceImg ? evidenceImg.src : '';
+
+    content.innerHTML = `
+      <div class="action-callout ${p4.priority_human_review ? 'action-borderline' : 'action-good'}">
+        <div class="action-icon">${p4.priority_human_review ? '⚠️' : '🎯'}</div>
+        <div class="action-content">
+          <h3 class="action-title">
+            Attention-Evidence Consistency:
+            ${p4.priority_human_review ? '<span class="badge badge-borderline">Priority Human Review Flagged</span>' : '<span class="badge badge-good">Consistent Model Attention</span>'}
+          </h3>
+          <p class="action-summary">${p4.consistency_flag_reason}</p>
+          <p class="action-guidance">
+            Heatmap-vs-HE IoU: <strong>${p4.iou_vs_he}</strong> · Heatmap-vs-EX IoU: <strong>${p4.iou_vs_ex}</strong> (Threshold: ${p4.threshold_used})
+          </p>
+        </div>
+      </div>
+
+      <div class="image-comparison-row">
+        <figure class="image-box">
+          <span class="evidence-badge label-model-attention">model attention</span>
+          <img src="${p4.heatmap_overlay_uri}" alt="Grad-CAM heatmap" class="result-img" />
+          <figcaption>Grad-CAM Model Attention (CNN Feature Activation)</figcaption>
+        </figure>
+
+        <figure class="image-box">
+          <span class="evidence-badge label-detected-evidence">detected evidence</span>
+          <img src="${evidenceSrc}" alt="Detected evidence overlay" class="result-img" />
+          <figcaption>Phase 2 Detected Anatomical Evidence (HE / EX / SE / MA)</figcaption>
+        </figure>
+      </div>
+    `;
+    const btn = document.getElementById('run-p4-btn');
+    if (btn) btn.textContent = '🔄 Re-run Phase 4';
   }
 </script>
 </body>

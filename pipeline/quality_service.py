@@ -107,7 +107,7 @@ class EyeQQualityService:
             # Suppress stdout noise during checkpoint loading if desired
             self._model = EyeQ(
                 checkpoint_path="checkpoints/efficientnet/",
-                pretrained=True,
+                pretrained=False,
                 lightweight=False,
                 mode="eval",
                 verbose=False,
