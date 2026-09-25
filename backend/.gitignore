@@ -1,0 +1,14 @@
+node_modules/
+.env
+storage/images/*
+storage/masks/*
+storage/heatmaps/*
+storage/reports/*
+!storage/images/.gitkeep
+!storage/masks/.gitkeep
+!storage/heatmaps/.gitkeep
+!storage/reports/.gitkeep
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,35 @@
+{
+  "name": "netra-dr-backend",
+  "version": "1.0.0",
+  "description": "NETRA-DR SIH 26038 — Node.js + Express backend service for DR screening platform",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test tests/auth.test.js tests/rbac.test.js"
+  },
+  "keywords": [
+    "netra-dr",
+    "diabetic-retinopathy",
+    "screening",
+    "sih26038"
+  ],
+  "author": "NETRA-DR Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
