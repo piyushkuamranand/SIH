@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcuScan AI — Clinical Retinal Suite</title>
+  <link rel="stylesheet" href="./static/css/styles.css" />
+</head>
+<body>
+
+  <!-- SVG Displacement / Refraction Filter (Scales 65, 56, 47) -->
+  <svg class="pointer-events-none absolute" style="width: 0; height: 0;" aria-hidden="true">
+    <defs>
+      <filter id="glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="65" xChannelSelector="R" yChannelSelector="G" result="r" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="56" xChannelSelector="G" yChannelSelector="B" result="g" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="47" xChannelSelector="B" yChannelSelector="R" result="b" />
+        <feBlend in="r" in2="g" mode="screen" result="rg" />
+        <feBlend in="rg" in2="b" mode="screen" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Fixed Canvas Video Layer (Retinal & Neural Stream) -->
+  <canvas id="bg-canvas" class="bg-canvas-fixed"></canvas>
+
+  <!-- Top Navigation Bar -->
+  <header class="site-nav">
+    <div class="brand-wrapper">
+      <div class="brand-icon">👁</div>
+      <div class="brand-text">
+        <h1>OCUSCAN<span>.AI</span></h1>
+        <div class="brand-sub">Clinical Retinal Suite #8123</div>
+      </div>
+    </div>
+
+    <div class="nav-status">
+      <div class="status-dot-pulse"></div>
+      <span>Neural Stream: <strong style="color: var(--cyan-glow);">Synchronized</strong></span>
+    </div>
+
+    <button id="menu-trigger" class="menu-trigger-btn" aria-label="Open Navigation Menu">
+      <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- 1. Hero Section (100vh / Full Viewport) -->
+  <main class="hero">
+    <div class="hero-grid">
+      
+      <!-- Left Column (Lede) -->
+      <div class="left-lede">
+        <div class="badge-tag">
+          <span>●</span>
+          <span>Phase 3 Medical AI · Class II Diagnostic</span>
+        </div>
+
+        <h2 class="hero-title">
+          OcuScan AI<br />
+          <span class="title-gradient">Clinical Retinal Suite</span>
+        </h2>
+
+        <p class="hero-body">
+          Enterprise diagnostic pipeline for Diabetic Retinopathy. Integrating real-time computer vision with ophthalmology workflows.
+        </p>
+
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+          <button class="chamfer-btn" type="button">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <span>System Secure</span>
+          </button>
+
+          <span style="font-size: 0.75rem; font-family: monospace; color: var(--text-dim);">
+            HIPAA &amp; SOC2 Validated
+          </span>
+        </div>
+      </div>
+
+      <!-- Right Column (Liquid Glass Card) -->
+      <div>
+        <div class="liquid-glass-card">
+          <!-- Header with Injected Planetary Pulse -->
+          <div class="card-header-row">
+            <div class="node-header-flex">
+              <div class="planetary-pulse-container">
+                <div class="pulse-ring-ping"></div>
+                <div class="pulse-center-dot"></div>
+              </div>
+              <div>
+                <div class="node-title-text">Hospital Node // Active</div>
+                <div class="node-sub-text">Primary Cluster · Localhost 8123</div>
+              </div>
+            </div>
+
+            <span style="font-size: 0.65rem; font-family: monospace; padding: 0.2rem 0.5rem; border-radius: 9999px; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); color: var(--cyan-glow);">
+              Online
+            </span>
+          </div>
+
+          <!-- Content Block 1 -->
+          <div class="glass-block">
+            <div class="block-title">Inference Engine</div>
+            <div class="block-body">
+              AI Model v2.4 Status: Online. Ready for localized inference.
+            </div>
+          </div>
+
+          <!-- Content Block 2 -->
+          <div class="glass-block">
+            <div class="block-title">Clinical Queue</div>
+            <div class="block-body">
+              Queue: 0 patients awaiting pre-check. 0 scans awaiting doctor review.
+            </div>
+          </div>
+
+          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid rgba(51,65,85,0.6); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+            <span>PACS / DICOM: Synced</span>
+            <span style="color: var(--cyan-glow); font-weight: 700;">Localhost Node</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 2. Role Selection Section (Immediately Below Hero) -->
+  <section class="roles-section">
+    <div class="roles-container">
+      
+      <!-- Section Header -->
+      <div class="roles-header">
+        <div class="badge-tag" style="margin: 0 auto;">
+          <span>✦</span>
+          <span>Role-Based Clinical Access</span>
+        </div>
+        <h2>Select Your Clinical Workspace</h2>
+        <p>
+          Specialized web interfaces designed for patient fundus scan acquisition and high-throughput ophthalmologist diagnostic reviews.
+        </p>
+      </div>
+
+      <!-- 2-Column Role Selection Grid -->
+      <div class="roles-grid">
+        
+        <!-- Card 1: Technician Workspace -->
+        <a href="login.html" class="role-card-link">
+          <div class="role-card tech">
+            <div>
+              <div class="role-card-top">
+                <div class="role-icon-box">📤</div>
+                <div class="role-phase-pill">Phase 1 &amp; 2 Ingest</div>
+              </div>
+
+              <h3 class="role-title">Technician Workspace</h3>
+              <div class="role-subtitle">Upload &amp; Pre-check</div>
+              <p class="role-desc">
+                Ingest high-resolution fundus scans, validate DICOM tags, and run automated Phase 1 AI image quality checks (blur &amp; exposure validation) before routing.
+              </p>
+
+              <div class="role-features">
+                <span>✓ Drag &amp; Drop Retinal Upload (PNG/JPG/TIFF/DCM)</span>
+                <span>✓ Real-time blur and lighting exposure scoring</span>
+              </div>
+            </div>
+
+            <div class="role-card-bottom">
+              <span>Launch Upload Portal</span>
+              <span>→</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- Card 2: Ophthalmologist Workstation -->
+        <a href="login.html" class="role-card-link">
+          <div class="role-card doc">
+            <div>
+              <div class="role-card-top">
+                <div class="role-icon-box">🩺</div>
+                <div class="role-phase-pill">Phase 3 Diagnostics</div>
+              </div>
+
+              <h3 class="role-title">Ophthalmologist Workstation</h3>
+              <div class="role-subtitle">Review Heatmaps &amp; Approve</div>
+              <p class="role-desc">
+                High-contrast radiology reading environment. Review AI Grad-CAM saliency heatmaps, microaneurysm bounding boxes, and execute 30-second grading decisions with hotkeys.
+              </p>
+
+              <div class="role-features">
+                <span>✓ Multi-layer toggles (Base, Grad-CAM, Lesion Boxes)</span>
+                <span>✓ Rapid hotkey decisions ([A] Approve, [M] Modify)</span>
+              </div>
+            </div>
+
+            <div class="role-card-bottom">
+              <span>Launch Workstation</span>
+              <span>→</span>
+            </div>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- Card 3: Central Queue & Flow Dashboard Link -->
+      <div class="roles-dashboard-wrapper">
+        <a href="login.html" class="roles-dashboard-btn">
+          <div class="roles-dashboard-icon">📊</div>
+          <div class="roles-dashboard-text">
+            <span class="roles-dashboard-title">
+              View Central Queue &amp; Flow Dashboard
+              <span class="live-pill">Live Kanban</span>
+            </span>
+            <span class="roles-dashboard-sub">
+              Hospital diagnostic pipeline · Drag &amp; drop patient triage · Real-time PACS audit log &amp; sign-off tracking
+            </span>
+          </div>
+          <div class="roles-dashboard-arrow">→</div>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 3. Disease Progression Educational Section -->
+  <section class="dr-education">
+    <div class="dr-container">
+      
+      <!-- Section Header -->
+      <div class="dr-header">
+        <div class="dr-badge">
+          <span>●</span>
+          <span>ETDRS Severity Classification</span>
+        </div>
+        <h2>Diabetic Retinopathy (DR) Progression Mapping</h2>
+        <p>
+          Comparative fundus pathology across key stages of diabetic eye disease, from healthy microvascular integrity to sight-threatening proliferative neovascularization.
+        </p>
+      </div>
+
+      <!-- 3-Column Educational Grid -->
+      <div class="dr-grid">
+
+        <!-- Card 1: Healthy / Normal Retina -->
+        <div class="dr-card">
+          <div class="dr-card-scan">
+            <svg class="dr-scan-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="normBg" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#732204"/>
+                  <stop offset="60%" stop-color="#4a1200"/>
+                  <stop offset="100%" stop-color="#1e0500"/>
+                </radialGradient>
+                <radialGradient id="normDisc" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#fff8db"/>
+                  <stop offset="50%" stop-color="#fde047"/>
+                  <stop offset="100%" stop-color="#d97706"/>
+                </radialGradient>
+                <clipPath id="normClip">
+                  <circle cx="100" cy="100" r="96"/>
+                </clipPath>
+              </defs>
+              <circle cx="100" cy="100" r="98" fill="#1e0500"/>
+              <g clip-path="url(#normClip)">
+                <circle cx="100" cy="100" r="96" fill="url(#normBg)"/>
+                <circle cx="65" cy="98" r="16" fill="url(#normDisc)"/>
+                <circle cx="65" cy="98" r="9" fill="#fffbeb" opacity="0.8"/>
+                <circle cx="118" cy="102" r="18" fill="#290700" opacity="0.7"/>
+                <circle cx="118" cy="102" r="3" fill="#ff7043" opacity="0.4"/>
+                <path d="M65,92 Q78,72 100,68 Q125,65 145,60 Q162,56 178,65" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M65,92 Q78,72 100,68 Q125,65 145,60 Q162,56 178,65" fill="none" stroke="#f87171" stroke-width="0.9" stroke-linecap="round"/>
+                <path d="M65,104 Q80,122 102,128 Q126,132 148,130 Q165,126 182,118" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M65,104 Q80,122 102,128 Q126,132 148,130 Q165,126 182,118" fill="none" stroke="#f87171" stroke-width="0.9" stroke-linecap="round"/>
+                <path d="M65,95 Q82,82 104,78 Q128,75 148,72" fill="none" stroke="#991b1b" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M65,101 Q82,115 104,122 Q128,124 150,120" fill="none" stroke="#991b1b" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M100,68 Q108,82 106,94" fill="none" stroke="#b91c1c" stroke-width="1.2"/>
+                <path d="M125,65 Q130,80 128,92" fill="none" stroke="#b91c1c" stroke-width="1"/>
+                <path d="M102,128 Q108,114 107,104" fill="none" stroke="#b91c1c" stroke-width="1.2"/>
+                <path d="M65,92 Q52,80 35,72" fill="none" stroke="#dc2626" stroke-width="1.6"/>
+                <path d="M65,104 Q50,118 32,124" fill="none" stroke="#dc2626" stroke-width="1.6"/>
+                <circle cx="100" cy="100" r="96" fill="none" stroke="#000" stroke-width="10" opacity="0.6"/>
+              </g>
+            </svg>
+          </div>
+          <div class="dr-card-body">
+            <span class="dr-stage-pill normal">Stage 0 · Normal</span>
+            <h3 class="dr-card-title">Healthy / Normal Retina</h3>
+            <p class="dr-card-desc">
+              Clear macula and optic disc. No visible lesions, hemorrhages, or microaneurysms.
+            </p>
+            <div class="dr-markers-list">
+              <span class="dr-marker-tag">Vessels Intact</span>
+              <span class="dr-marker-tag">Zero Lesions</span>
+              <span class="dr-marker-tag">Normal Foveal Reflex</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Moderate NPDR -->
+        <div class="dr-card">
+          <div class="dr-card-scan">
+            <svg class="dr-scan-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="modBg" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#6e2003"/>
+                  <stop offset="60%" stop-color="#451100"/>
+                  <stop offset="100%" stop-color="#1a0400"/>
+                </radialGradient>
+                <radialGradient id="modDisc" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#fff8db"/>
+                  <stop offset="50%" stop-color="#fde047"/>
+                  <stop offset="100%" stop-color="#d97706"/>
+                </radialGradient>
+                <clipPath id="modClip">
+                  <circle cx="100" cy="100" r="96"/>
+                </clipPath>
+              </defs>
+              <circle cx="100" cy="100" r="98" fill="#1a0400"/>
+              <g clip-path="url(#modClip)">
+                <circle cx="100" cy="100" r="96" fill="url(#modBg)"/>
+                <circle cx="65" cy="98" r="16" fill="url(#modDisc)"/>
+                <circle cx="65" cy="98" r="9" fill="#fffbeb" opacity="0.8"/>
+                <circle cx="118" cy="102" r="18" fill="#240600" opacity="0.75"/>
+                <path d="M65,92 Q78,72 100,68 Q125,65 145,60 Q162,56 178,65" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M65,104 Q80,122 102,128 Q126,132 148,130 Q165,126 182,118" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M65,95 Q82,82 104,78 Q128,75 148,72" fill="none" stroke="#991b1b" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M65,101 Q82,115 104,122 Q128,124 150,120" fill="none" stroke="#991b1b" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M100,68 Q108,82 106,94" fill="none" stroke="#b91c1c" stroke-width="1.2"/>
+                <path d="M102,128 Q108,114 107,104" fill="none" stroke="#b91c1c" stroke-width="1.2"/>
+                <!-- Hemorrhages -->
+                <circle cx="110" cy="85" r="3.2" fill="#7f1d1d"/>
+                <ellipse cx="132" cy="78" rx="4" ry="2.6" fill="#7f1d1d" transform="rotate(-15,132,78)"/>
+                <circle cx="94" cy="115" r="2.8" fill="#7f1d1d"/>
+                <ellipse cx="128" cy="122" rx="4.5" ry="3" fill="#881337" transform="rotate(20,128,122)"/>
+                <circle cx="146" cy="112" r="3" fill="#7f1d1d"/>
+                <circle cx="78" cy="128" r="2.5" fill="#881337"/>
+                <!-- Microaneurysms -->
+                <circle cx="106" cy="74" r="1.4" fill="#ef4444"/>
+                <circle cx="118" cy="80" r="1.3" fill="#ef4444"/>
+                <circle cx="124" cy="88" r="1.5" fill="#ef4444"/>
+                <circle cx="138" cy="94" r="1.3" fill="#ef4444"/>
+                <circle cx="112" cy="118" r="1.4" fill="#ef4444"/>
+                <circle cx="138" cy="128" r="1.3" fill="#ef4444"/>
+                <circle cx="152" cy="84" r="1.4" fill="#ef4444"/>
+                <!-- Hard Exudates -->
+                <ellipse cx="140" cy="82" rx="3.5" ry="2" fill="#fef08a" opacity="0.85" transform="rotate(25,140,82)"/>
+                <circle cx="144" cy="86" r="2" fill="#fef9c3" opacity="0.9"/>
+                <circle cx="136" cy="86" r="1.8" fill="#fef08a" opacity="0.85"/>
+                <ellipse cx="148" cy="90" rx="2.8" ry="1.7" fill="#fde047" opacity="0.8" transform="rotate(-10,148,90)"/>
+                <ellipse cx="135" cy="115" rx="3.2" ry="2" fill="#fef08a" opacity="0.85" transform="rotate(-30,135,115)"/>
+                <circle cx="140" cy="117" r="1.7" fill="#fef9c3" opacity="0.9"/>
+                <circle cx="100" cy="100" r="96" fill="none" stroke="#000" stroke-width="10" opacity="0.6"/>
+              </g>
+            </svg>
+          </div>
+          <div class="dr-card-body">
+            <span class="dr-stage-pill moderate">Stage 2 · Moderate</span>
+            <h3 class="dr-card-title">Moderate NPDR</h3>
+            <p class="dr-card-desc">
+              Presence of dot-and-blot hemorrhages, hard exudates, and early microaneurysms.
+            </p>
+            <div class="dr-markers-list">
+              <span class="dr-marker-tag">Microaneurysms (MA)</span>
+              <span class="dr-marker-tag">Blot Hemorrhages</span>
+              <span class="dr-marker-tag">Hard Exudates (EX)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Proliferative DR (PDR) -->
+        <div class="dr-card">
+          <div class="dr-card-scan">
+            <svg class="dr-scan-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="pdrBg" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#611902"/>
+                  <stop offset="60%" stop-color="#3c0c00"/>
+                  <stop offset="100%" stop-color="#140300"/>
+                </radialGradient>
+                <radialGradient id="pdrDisc" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#fff8db"/>
+                  <stop offset="50%" stop-color="#fde047"/>
+                  <stop offset="100%" stop-color="#d97706"/>
+                </radialGradient>
+                <clipPath id="pdrClip">
+                  <circle cx="100" cy="100" r="96"/>
+                </clipPath>
+              </defs>
+              <circle cx="100" cy="100" r="98" fill="#140300"/>
+              <g clip-path="url(#pdrClip)">
+                <circle cx="100" cy="100" r="96" fill="url(#pdrBg)"/>
+                <circle cx="65" cy="98" r="16" fill="url(#pdrDisc)"/>
+                <circle cx="118" cy="102" r="18" fill="#1f0400" opacity="0.8"/>
+                <path d="M65,92 Q74,68 96,66 Q118,64 140,56 Q158,50 176,60" fill="none" stroke="#b91c1c" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M65,104 Q76,126 98,132 Q122,136 145,133 Q164,130 182,118" fill="none" stroke="#b91c1c" stroke-width="2.8" stroke-linecap="round"/>
+                <!-- Neovascularization fronds -->
+                <path d="M62,94 Q56,84 66,78 Q74,74 70,86 Q76,82 82,88 Q78,96 86,94" fill="none" stroke="#ef4444" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M65,102 Q60,114 70,118 Q78,122 75,108 Q82,112 88,106" fill="none" stroke="#ef4444" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M68,96 Q78,92 84,98 Q92,94 90,86 Q96,90 102,88" fill="none" stroke="#f87171" stroke-width="1.1" stroke-linecap="round"/>
+                <path d="M125,65 Q130,55 138,58 Q144,52 142,64 Q148,60 152,66" fill="none" stroke="#ef4444" stroke-width="1.2"/>
+                <path d="M126,132 Q132,142 140,138 Q146,145 144,132 Q150,136 156,130" fill="none" stroke="#ef4444" stroke-width="1.2"/>
+                <!-- Preretinal hemorrhage -->
+                <path d="M105,96 Q122,94 138,98 Q140,112 125,116 Q108,116 105,96 Z" fill="#7f1d1d" opacity="0.9"/>
+                <path d="M106,97 Q122,96 136,99 Q138,106 124,108 Q110,108 106,97 Z" fill="#991b1b" opacity="0.6"/>
+                <ellipse cx="86" cy="120" rx="9" ry="5" fill="#581c87" opacity="0.4" transform="rotate(-15,86,120)"/>
+                <ellipse cx="86" cy="120" rx="7" ry="4" fill="#7f1d1d" opacity="0.8" transform="rotate(-15,86,120)"/>
+                <ellipse cx="148" cy="74" rx="7" ry="4" fill="#7f1d1d" opacity="0.85" transform="rotate(25,148,74)"/>
+                <circle cx="158" cy="110" r="4.5" fill="#881337"/>
+                <circle cx="95" cy="80" r="1.5" fill="#ef4444"/>
+                <circle cx="112" cy="72" r="1.6" fill="#ef4444"/>
+                <circle cx="150" cy="100" r="1.5" fill="#ef4444"/>
+                <circle cx="114" cy="125" r="1.5" fill="#ef4444"/>
+                <ellipse cx="152" cy="84" rx="3" ry="1.8" fill="#fde047" opacity="0.8"/>
+                <circle cx="100" cy="100" r="96" fill="none" stroke="#000" stroke-width="10" opacity="0.6"/>
+              </g>
+            </svg>
+          </div>
+          <div class="dr-card-body">
+            <span class="dr-stage-pill severe">Stage 4 · Proliferative</span>
+            <h3 class="dr-card-title">Proliferative DR (PDR)</h3>
+            <p class="dr-card-desc">
+              Advanced stage. Neovascularization (fragile new blood vessels) and high risk of vitreous hemorrhage or detachment.
+            </p>
+            <div class="dr-markers-list">
+              <span class="dr-marker-tag">Neovascularization (NV)</span>
+              <span class="dr-marker-tag">Preretinal Bleeds</span>
+              <span class="dr-marker-tag">High Detachment Risk</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Compact Clinical Regulatory Footer -->
+  <footer class="clinical-footer">
+    <div class="clinical-footer-container">
+      <div class="clinical-footer-left">
+        Facility: <strong>OcuScan Medical Center</strong> | Powered by Terranova AI Systems
+      </div>
+      <div class="clinical-footer-center">
+        HIPAA Compliant • ISO 13485 • CDSCO &amp; NABH Guidelines Applied
+      </div>
+      <div class="clinical-footer-right">
+        Support: +91 1800-XXX-XXXX | <a href="mailto:tech@ocuscan.local">tech@ocuscan.local</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 3. Slide-in Menu (Updated Links) -->
+  <div id="menu-overlay" class="slide-menu-overlay">
+    <div class="slide-menu-panel">
+      <div>
+        <div class="menu-header">
+          <span style="font-size: 0.75rem; font-weight: 800; font-family: monospace; color: var(--cyan-glow); text-transform: uppercase;">
+            System Resources
+          </span>
+          <button id="menu-close" style="background: none; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer;">
+            ✕
+          </button>
+        </div>
+
+        <nav class="menu-nav-links">
+          <a href="#faq" class="menu-link-item">
+            <span>FAQ</span>
+            <span style="font-size: 0.7rem; color: var(--text-dim); font-family: monospace;">General</span>
+          </a>
+          <a href="#docs" class="menu-link-item">
+            <span>Documentation</span>
+            <span style="font-size: 0.7rem; color: var(--text-dim); font-family: monospace;">API &amp; SDK</span>
+          </a>
+          <a href="#status" class="menu-link-item">
+            <span>API Status</span>
+            <span style="font-size: 0.7rem; color: var(--green-status); font-family: monospace;">99.99%</span>
+          </a>
+          <a href="#support" class="menu-link-item">
+            <span>Help &amp; Support</span>
+            <span style="font-size: 0.7rem; color: var(--cyan-glow); font-family: monospace;">24/7 Triage</span>
+          </a>
+        </nav>
+      </div>
+
+      <div class="menu-footer">
+        <div>Clinical Support &amp; Helpdesk:</div>
+        <a href="mailto:support@ocuscan.hospital.local">support@ocuscan.hospital.local</a>
+        <div style="margin-top: 0.5rem;">OcuScan AI v2.4 · Hospital Local Node</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./static/js/ui.js"></script>
+</body>
+</html>

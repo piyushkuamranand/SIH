@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcuScan AI — Central Hospital Queue &amp; Flow Board</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090e17;
+      --bg-surface: #0f172a;
+      --col-bg: #141d2e;
+      --col-header-bg: #182238;
+      --card-bg: #1c283f;
+      --card-hover: #22314d;
+      --card-border: #283955;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --cyan: #22d3ee;
+      --cyan-dim: #0891b2;
+      --amber: #fbbf24;
+      --green: #22c55e;
+      --purple: #a855f7;
+      --rose: #f43f5e;
+      --blue: #38bdf8;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top Navbar ─────────────────────────────────────────────── */
+    .navbar {
+      height: 56px;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(8px);
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .navbar-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+    }
+
+    .navbar-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .navbar-title .brand-accent {
+      color: var(--cyan);
+    }
+
+    .navbar-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: monospace;
+      margin-top: 1px;
+    }
+
+    .navbar-center {
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      .navbar-center {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+    }
+
+    .node-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 999px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--green);
+    }
+
+    .node-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .clock-display {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--text-muted);
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .return-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.18s ease;
+    }
+
+    .return-btn:hover {
+      background: rgba(34, 211, 238, 0.1);
+      border-color: rgba(34, 211, 238, 0.4);
+      color: var(--cyan);
+    }
+
+    /* ── Subheader Controls & Telemetry ────────────────────────── */
+    .board-header {
+      padding: 1.5rem 1.75rem 1rem 1.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: #0c1322;
+    }
+
+    .board-title-group h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .board-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .board-stats {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .stat-pill .stat-label {
+      color: var(--text-dim);
+    }
+
+    .stat-pill .stat-val {
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .stat-pill.alert .stat-val {
+      color: var(--amber);
+    }
+
+    /* ── Kanban Grid Layout (4 columns) ────────────────────────── */
+    .kanban-wrapper {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(290px, 1fr));
+      gap: 1.25rem;
+      min-height: calc(100vh - 180px);
+    }
+
+    /* ── Column Container ──────────────────────────────────────── */
+    .kanban-col {
+      background: var(--col-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .col-header {
+      padding: 1rem 1.1rem;
+      background: var(--col-header-bg);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: relative;
+    }
+
+    .col-accent-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .col-precheck .col-accent-bar { background: var(--blue); }
+    .col-system .col-accent-bar { background: var(--purple); }
+    .col-doctor .col-accent-bar { background: var(--amber); }
+    .col-completed .col-accent-bar { background: var(--green); }
+
+    .col-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .col-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .col-count {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+    }
+
+    .col-subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Drop Zone / Cards List */
+    .kanban-dropzone {
+      flex: 1;
+      padding: 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      min-height: 250px;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .kanban-dropzone.drag-over {
+      background: rgba(34, 211, 238, 0.06);
+      outline: 2px dashed rgba(34, 211, 238, 0.4);
+      outline-offset: -4px;
+      border-radius: 8px;
+    }
+
+    /* ── Patient Card ─────────────────────────────────────────── */
+    .patient-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1rem;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .patient-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(34, 211, 238, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    .patient-card.dragging {
+      opacity: 0.45;
+      cursor: grabbing;
+      transform: scale(0.98);
+      border-color: var(--cyan);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .patient-id {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--cyan);
+      font-family: monospace;
+      letter-spacing: 0.02em;
+    }
+
+    .patient-priority {
+      font-size: 9px;
+      font-weight: 700;
+      font-family: monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .priority-urgent {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fb7185;
+    }
+
+    .priority-active {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+    }
+
+    .priority-high {
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      color: #fcd34d;
+    }
+
+    .priority-routine {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #7dd3fc;
+    }
+
+    .priority-completed {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #4ade80;
+    }
+
+    .card-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .meta-label {
+      color: var(--text-dim);
+      font-size: 10px;
+    }
+
+    .card-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-family: monospace;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .badge-amber { background: rgba(251, 191, 36, 0.12); color: var(--amber); }
+    .badge-rose { background: rgba(244, 63, 94, 0.12); color: var(--rose); }
+    .badge-purple { background: rgba(168, 85, 247, 0.12); color: var(--purple); }
+    .badge-cyan { background: rgba(34, 211, 238, 0.12); color: var(--cyan); }
+    .badge-green { background: rgba(34, 197, 94, 0.12); color: var(--green); }
+
+    .card-time {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    /* Audit sign-off timestamp appended when finished */
+    .audit-signoff {
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(34, 197, 94, 0.08);
+      border-left: 2px solid var(--green);
+      border-radius: 0 4px 4px 0;
+      font-size: 10px;
+      font-family: monospace;
+      color: #86efac;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      animation: signoffPulse 0.4s ease-out;
+    }
+
+    @keyframes signoffPulse {
+      0% { opacity: 0; transform: translateY(-4px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Toast Notification ──────────────────────────────────── */
+    #dashboard-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #141d2e;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+      pointer-events: none;
+      font-size: 12px;
+    }
+
+    #dashboard-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px rgba(34, 211, 238, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <div class="navbar-logo">📋</div>
+      <div>
+        <div class="navbar-title">OcuScan <span class="brand-accent">AI</span> — Central Hospital Queue</div>
+        <div class="navbar-sub">Real-Time Patient Flow &amp; Audit Log</div>
+      </div>
+    </div>
+
+    <div class="navbar-center">
+      <div class="node-badge">
+        <div class="node-dot"></div>
+        Hospital Node #8123: Active
+      </div>
+      <div class="clock-display" id="live-clock">--:--:-- UTC</div>
+    </div>
+
+    <div class="navbar-right">
+      <a href="index.html" class="return-btn">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Return to Portal
+      </a>
+    </div>
+  </nav>
+
+  <!-- Board Subheader & Summary Metrics -->
+  <header class="board-header">
+    <div class="board-title-group">
+      <h1>
+        <span>Hospital Diagnostic Pipeline</span>
+      </h1>
+      <div class="board-desc">
+        Drag and drop patient cases between processing gates. State transitions update audit logs automatically.
+      </div>
+    </div>
+
+    <div class="board-stats">
+      <div class="stat-pill">
+        <span class="stat-label">Active Flow:</span>
+        <span class="stat-val" id="stat-active-cases">8 Patients</span>
+      </div>
+      <div class="stat-pill alert">
+        <span class="stat-label">Avg Cycle:</span>
+        <span class="stat-val">3.4 min / case</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">PACS Sync:</span>
+        <span class="stat-val" style="color:var(--green);">Connected</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Kanban Board: 4 Columns -->
+  <main class="kanban-wrapper">
+    <div class="kanban-board">
+
+      <!-- COLUMN 1: Awaiting Pre-Check -->
+      <section class="kanban-col col-precheck" data-col-id="precheck" data-col-title="Awaiting Pre-Check">
+        <div class="col-header">
+          <div class="col-accent-bar"></div>
+          <div class="col-header-top">
+            <h2 class="col-title">
+              <span>📤</span>
+              <span>Awaiting Pre-Check</span>
+            </h2>
+            <span class="col-count" id="count-precheck">2</span>
+          </div>
+          <div class="col-subtitle">Technician Queue · Upload &amp; Quality QA</div>
+        </div>
+
+        <div class="kanban-dropzone" id="dropzone-precheck">
+          <!-- Dynamically populated from store.js -->
+        </div>
+      </section>
+
+      <!-- COLUMN 2: AI Inference & Processing -->
+      <section class="kanban-col col-system" data-col-id="system" data-col-title="AI Inference &amp; Processing">
+        <div class="col-header">
+          <div class="col-accent-bar"></div>
+          <div class="col-header-top">
+            <h2 class="col-title">
+              <span>⚡</span>
+              <span>AI Inference</span>
+            </h2>
+            <span class="col-count" id="count-system">0</span>
+          </div>
+          <div class="col-subtitle">System Queue · Grad-CAM &amp; Microaneurysms</div>
+        </div>
+
+        <div class="kanban-dropzone" id="dropzone-system">
+          <!-- Dynamically populated from store.js -->
+        </div>
+      </section>
+
+      <!-- COLUMN 3: Awaiting Doctor Review -->
+      <section class="kanban-col col-doctor" data-col-id="doctor" data-col-title="Awaiting Doctor Review">
+        <div class="col-header">
+          <div class="col-accent-bar"></div>
+          <div class="col-header-top">
+            <h2 class="col-title">
+              <span>🩺</span>
+              <span>Doctor Review</span>
+            </h2>
+            <span class="col-count" id="count-doctor">0</span>
+          </div>
+          <div class="col-subtitle">Ophthalmologist Queue · Clinical Validation</div>
+        </div>
+
+        <div class="kanban-dropzone" id="dropzone-doctor">
+          <!-- Dynamically populated from store.js -->
+        </div>
+      </section>
+
+      <!-- COLUMN 4: Completed & Audit Log -->
+      <section class="kanban-col col-completed" data-col-id="completed" data-col-title="Completed &amp; Audit Log">
+        <div class="col-header">
+          <div class="col-accent-bar"></div>
+          <div class="col-header-top">
+            <h2 class="col-title">
+              <span>✅</span>
+              <span>Completed &amp; Audit</span>
+            </h2>
+            <span class="col-count" id="count-completed">0</span>
+          </div>
+          <div class="col-subtitle">Finished Reports · Signed Off &amp; PACS Synced</div>
+        </div>
+
+        <div class="kanban-dropzone" id="dropzone-completed">
+          <!-- Dynamically populated from store.js -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Interactive Toast Feedback -->
+  <div id="dashboard-toast">
+    <div class="toast-dot"></div>
+    <div id="toast-message">State transition recorded in audit log.</div>
+  </div>
+
+  <script src="./static/js/auth.js"></script>
+  <script src="./static/js/store.js"></script>
+  <script src="./static/js/dashboard.js"></script>
+</body>
+</html>

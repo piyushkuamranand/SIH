@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcuScan AI — Technician Upload Workspace</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white:          #ffffff;
+      --surface:        #f8fafc;
+      --surface-2:      #f1f5f9;
+      --border:         #e2e8f0;
+      --border-strong:  #cbd5e1;
+      --text:           #0f172a;
+      --text-muted:     #64748b;
+      --text-faint:     #94a3b8;
+      --primary:        #0284c7;
+      --primary-dark:   #0369a1;
+      --primary-light:  #e0f2fe;
+      --cyan:           #06b6d4;
+      --cyan-light:     #cffafe;
+      --success-bg:     #f0fdf4;
+      --success-border: #86efac;
+      --success-text:   #14532d;
+      --success-icon:   #16a34a;
+      --error-bg:       #fff1f2;
+      --error-border:   #fda4af;
+      --error-text:     #881337;
+      --error-icon:     #e11d48;
+      --shadow-sm:      0 1px 3px 0 rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.06);
+      --shadow-md:      0 4px 16px 0 rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.06);
+      --shadow-lg:      0 12px 32px 0 rgba(0,0,0,0.10), 0 4px 12px -4px rgba(0,0,0,0.08);
+      --radius-sm:      6px;
+      --radius:         12px;
+      --radius-lg:      16px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ========== NAVBAR ========== */
+    .navbar {
+      height: 60px;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .navbar-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #06b6d4, #0284c7);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+    }
+
+    .navbar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .navbar-title span {
+      color: var(--primary);
+    }
+
+    .navbar-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .node-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #15803d;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .node-badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    .return-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--white);
+      transition: all 0.15s ease;
+    }
+
+    .return-link:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+    }
+
+    .return-link svg {
+      flex-shrink: 0;
+    }
+
+    /* ========== MAIN LAYOUT ========== */
+    .main-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--primary);
+      background: var(--primary-light);
+      border: 1px solid rgba(2, 132, 199, 0.25);
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin-bottom: 10px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .page-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .layout-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ========== CARD ========== */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .card-header-icon.blue { background: var(--primary-light); color: var(--primary); }
+    .card-header-icon.cyan { background: var(--cyan-light); color: #0891b2; }
+
+    .card-header-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .card-header-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    /* ========== FORM ========== */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+      letter-spacing: 0.01em;
+    }
+
+    label .req {
+      color: var(--error-icon);
+      margin-left: 2px;
+    }
+
+    label .badge-hint {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-faint);
+      font-family: monospace;
+      margin-left: 4px;
+      font-style: normal;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+    }
+
+    input::placeholder { color: var(--text-faint); }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      pointer-events: none;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 18px 0;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+    }
+
+    /* Radio Eye Selector */
+    .eye-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .eye-option {
+      position: relative;
+    }
+
+    .eye-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .eye-option label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      margin: 0;
+    }
+
+    .eye-option input:checked + label {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .eye-option label:hover {
+      border-color: var(--primary);
+      background: #f0f9ff;
+    }
+
+    .eye-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      background: var(--surface-2);
+      flex-shrink: 0;
+    }
+
+    .eye-option input:checked + label .eye-icon {
+      background: rgba(2, 132, 199, 0.15);
+    }
+
+    /* Submit Btn */
+    .submit-btn {
+      width: 100%;
+      height: 42px;
+      background: linear-gradient(135deg, var(--primary), #0369a1);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+      transition: all 0.15s;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #0369a1, #075985);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .submit-btn:active:not(:disabled) { transform: translateY(0); }
+
+    .submit-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ========== DROP ZONE ========== */
+    .drop-zone-area {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drop-zone {
+      position: relative;
+      border: 2.5px dashed var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      overflow: hidden;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background: #f0f9ff;
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--cyan);
+      background: var(--cyan-light);
+      border-style: solid;
+      box-shadow: inset 0 0 0 4px rgba(6, 182, 212, 0.1);
+    }
+
+    .drop-zone.has-preview {
+      border-style: solid;
+      border-color: var(--primary);
+      background: var(--white);
+    }
+
+    .drop-zone-idle {
+      text-align: center;
+      padding: 32px;
+    }
+
+    .drop-zone-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      color: var(--primary);
+    }
+
+    .drop-zone-idle h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .drop-zone-idle p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .drop-zone-idle .browse-link {
+      color: var(--primary);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .drop-zone-idle .file-hint {
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 8px;
+      font-family: monospace;
+    }
+
+    /* Hidden file input */
+    #file-input { display: none; }
+
+    /* Image preview inside drop zone */
+    #preview-container {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #preview-container img {
+      width: 100%;
+      height: 280px;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .preview-tag {
+      background: rgba(15, 23, 42, 0.75);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-family: monospace;
+      letter-spacing: 0.04em;
+    }
+
+    .clear-btn {
+      background: rgba(225, 29, 72, 0.85);
+      border: none;
+      border-radius: 999px;
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .clear-btn:hover { background: rgba(190, 18, 60, 0.95); }
+
+    /* File info strip */
+    #file-info-strip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--primary-light);
+      border: 1px solid rgba(2, 132, 199, 0.25);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--primary-dark);
+    }
+
+    #file-info-strip svg { flex-shrink: 0; }
+
+    #file-name { font-weight: 700; }
+    #file-size { color: var(--text-muted); font-family: monospace; }
+
+    /* Quality badges row */
+    .quality-checks {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .quality-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+    }
+
+    .quality-badge.ok {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success-text);
+    }
+
+    .quality-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ========== BANNER ========== */
+    #ai-banner {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+      margin-top: 4px;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid transparent;
+    }
+
+    #ai-banner.success {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success-text);
+    }
+
+    #ai-banner.error {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error-text);
+    }
+
+    #ai-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ========== SPINNER / LOADING STATE ========== */
+    #loading-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      color: #0369a1;
+      margin-top: 4px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(2, 132, 199, 0.3);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Stepper progress bar */
+    .steps-row {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+    }
+
+    .step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .step::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      right: -50%;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    .step:last-child::before { display: none; }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--border-strong);
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      z-index: 1;
+      position: relative;
+    }
+
+    .step.active .step-num {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .step.done .step-num {
+      border-color: #22c55e;
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .step-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 5px;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .step.active .step-label { color: var(--primary); }
+    .step.done .step-label { color: #15803d; }
+
+    /* ========== DICOM METADATA STRIP ========== */
+    .meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .meta-item { }
+
+    .meta-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-faint);
+    }
+
+    .meta-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: monospace;
+    /* Toast Notification */
+    #tech-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+      pointer-events: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    #tech-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    #tech-toast .toast-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #16a34a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="navbar-logo">👁</div>
+      <div>
+        <div class="navbar-title">OcuScan <span>AI</span> — Technician Workspace</div>
+        <div class="navbar-subtitle">Phase 3 Retinal Diagnostic Upload Portal</div>
+      </div>
+    </div>
+
+    <div class="navbar-right">
+      <div class="node-badge">
+        <div class="node-badge-dot"></div>
+        <span>Hospital Node Active</span>
+      </div>
+      <a href="/" class="return-link">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Return to Portal
+      </a>
+    </div>
+  </nav>
+
+  <!-- ========== MAIN ========== -->
+  <div class="main-wrapper">
+
+    <!-- Page heading -->
+    <div class="page-header">
+      <div class="page-tag">
+        <svg width="10" height="10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+        Technician Upload Dashboard
+      </div>
+      <h1 class="page-title">Submit Retinal Scan for AI Analysis</h1>
+      <p class="page-desc">Enter patient details and upload a fundus image. The AI will perform an automated quality check before routing to the Ophthalmologist queue.</p>
+    </div>
+
+    <!-- Phase Stepper -->
+    <div class="steps-row">
+      <div class="step active" id="step-1">
+        <div class="step-num">1</div>
+        <div class="step-label">Patient Info</div>
+      </div>
+      <div class="step" id="step-2">
+        <div class="step-num">2</div>
+        <div class="step-label">Upload Scan</div>
+      </div>
+      <div class="step" id="step-3">
+        <div class="step-num">3</div>
+        <div class="step-label">AI Quality Check</div>
+      </div>
+      <div class="step" id="step-4">
+        <div class="step-num">4</div>
+        <div class="step-label">Ophthalmologist Queue</div>
+      </div>
+    </div>
+
+    <!-- Two-column layout -->
+    <div class="layout-grid">
+
+      <!-- ===== LEFT: PATIENT FORM ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-icon blue">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-header-title">Patient Details</div>
+            <div class="card-header-sub">Identify the patient before uploading the scan</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="patient-form" novalidate>
+
+            <div class="section-label">Identification</div>
+
+            <div class="form-group">
+              <label for="patient-id">Patient ID <span class="req">*</span> <span class="badge-hint">MRN / Hospital ID</span></label>
+              <input type="text" id="patient-id" placeholder="e.g. MRN-00491" autocomplete="off" required />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="patient-name">Full Name <span class="req">*</span></label>
+                <input type="text" id="patient-name" placeholder="First Last" required />
+              </div>
+              <div class="form-group">
+                <label for="patient-age">Age <span class="req">*</span></label>
+                <input type="number" id="patient-age" placeholder="Years" min="1" max="120" required />
+              </div>
+            </div>
+
+            <div class="form-divider"></div>
+            <div class="section-label">Clinical Context</div>
+
+            <div class="form-group">
+              <label>Eye Scanned <span class="req">*</span></label>
+              <div class="eye-selector">
+                <div class="eye-option">
+                  <input type="radio" name="eye" id="eye-left" value="OD (Right Eye)" />
+                  <label for="eye-left">
+                    <div class="eye-icon">👁</div>
+                    <span>OD — Right Eye</span>
+                  </label>
+                </div>
+                <div class="eye-option">
+                  <input type="radio" name="eye" id="eye-right" value="OS (Left Eye)" />
+                  <label for="eye-right">
+                    <div class="eye-icon">👁</div>
+                    <span>OS — Left Eye</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="scan-device">Capture Device <span class="badge-hint">Optional</span></label>
+              <div class="select-wrapper">
+                <select id="scan-device">
+                  <option value="">Select device...</option>
+                  <option>Topcon NW400 (Non-Mydriatic)</option>
+                  <option>Zeiss Visucam 524</option>
+                  <option>Canon CR-2 AF Plus</option>
+                  <option>Optomed Aurora IQ</option>
+                  <option>Kowa VX-20α</option>
+                  <option>Other / Unknown</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="clinical-notes">Clinical Notes <span class="badge-hint">Optional</span></label>
+              <input type="text" id="clinical-notes" placeholder="e.g. T2DM 12yrs, HbA1c 9.2%" />
+            </div>
+
+            <div class="form-divider"></div>
+
+            <!-- DICOM Metadata strip (auto-populated on drop) -->
+            <div class="section-label">DICOM Scan Metadata</div>
+            <div class="meta-strip">
+              <div class="meta-item">
+                <div class="meta-label">File Format</div>
+                <div class="meta-value" id="meta-format">—</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">Resolution</div>
+                <div class="meta-value" id="meta-res">—</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">File Size</div>
+                <div class="meta-value" id="meta-size">—</div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- ===== RIGHT: UPLOAD ZONE ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-icon cyan">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-header-title">Retinal Scan Upload</div>
+            <div class="card-header-sub">Drag & drop the fundus image or browse</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="drop-zone-area">
+
+            <!-- Drop Zone -->
+            <div class="drop-zone" id="drop-zone">
+              <div class="drop-zone-idle" id="drop-idle">
+                <div class="drop-zone-icon">
+                  <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                </div>
+                <h4>Drop fundus image here</h4>
+                <p>
+                  <span class="browse-link" id="browse-trigger">Browse files</span> or drag &amp; drop
+                </p>
+                <div class="file-hint">Accepted: PNG, JPEG, TIFF, DCM · Max 50 MB</div>
+              </div>
+
+              <!-- Image Preview (shown after drop) -->
+              <div id="preview-container">
+                <img id="preview-img" src="" alt="Retinal scan preview" />
+                <div class="preview-overlay">
+                  <span class="preview-tag" id="preview-tag">FUNDUS</span>
+                  <button class="clear-btn" id="clear-btn" title="Remove image">×</button>
+                </div>
+              </div>
+
+              <input type="file" id="file-input" accept="image/png,image/jpeg,image/tiff,.dcm" />
+            </div>
+
+            <!-- File info strip -->
+            <div id="file-info-strip">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" color="#0284c7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span id="file-name">—</span>
+              <span id="file-size">—</span>
+            </div>
+
+            <!-- Quality pre-check badges (shown after file loaded) -->
+            <div class="quality-checks" id="quality-badges" style="display:none;">
+              <div class="quality-badge ok">
+                <div class="quality-badge-dot"></div>
+                Format Validated
+              </div>
+              <div class="quality-badge ok">
+                <div class="quality-badge-dot"></div>
+                EXIF Metadata Read
+              </div>
+              <div class="quality-badge" id="badge-size">
+                <div class="quality-badge-dot"></div>
+                Size Check Pending
+              </div>
+            </div>
+
+            <!-- Loading banner -->
+            <div id="loading-banner">
+              <div class="spinner"></div>
+              <span id="loading-text">AI analyzing image quality (blur/lighting)…</span>
+            </div>
+
+            <!-- Result Banner -->
+            <div id="ai-banner" role="alert">
+              <svg id="banner-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"></svg>
+              <span id="banner-text"></span>
+            </div>
+
+            <!-- Submit Button -->
+            <button class="submit-btn" id="upload-btn" type="button" disabled>
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              Upload to AI Model
+            </button>
+
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /layout-grid -->
+  </div><!-- /main-wrapper -->
+
+  <!-- Toast Notification -->
+  <div id="tech-toast">
+    <div class="toast-icon">✓</div>
+    <span id="tech-toast-msg">Patient sent to Doctor Queue.</span>
+  </div>
+
+  <script src="./static/js/auth.js"></script>
+  <script src="./static/js/store.js"></script>
+  <script src="./static/js/technician.js"></script>
+</body>
+</html>

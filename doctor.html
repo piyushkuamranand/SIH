@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcuScan AI — Ophthalmologist Workstation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #0a0e17;
+      --surface:       #101520;
+      --surface-2:     #141929;
+      --surface-raised: #1a2035;
+      --border-subtle: rgba(255,255,255,0.04);
+      --border-mid:    rgba(255,255,255,0.08);
+      --text:          #dde4f0;
+      --text-muted:    #8496b0;
+      --text-faint:    #4a5a72;
+      --cyan:          #22d3ee;
+      --cyan-dim:      #0891b2;
+      --amber:         #fbbf24;
+      --amber-dim:     #d97706;
+      --green:         #22c55e;
+      --green-dim:     #16a34a;
+      --red:           #f87171;
+    }
+
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden; /* global page NEVER scrolls */
+    }
+
+    /* ── Magnifier toggle button ──────────────────────────── */
+    .mag-toggle-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      color: var(--text-faint);
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: all .18s ease;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+    .mag-toggle-btn:hover {
+      color: var(--cyan);
+      border-color: rgba(34,211,238,.35);
+      background: rgba(34,211,238,.06);
+    }
+    .mag-toggle-btn.active {
+      color: var(--cyan);
+      border-color: rgba(34,211,238,.6);
+      background: rgba(34,211,238,.1);
+      box-shadow: 0 0 10px rgba(34,211,238,.2);
+    }
+    .mag-toggle-btn .mag-icon {
+      font-size: 13px; line-height: 1;
+      transition: transform .2s ease;
+    }
+    .mag-toggle-btn.active .mag-icon { transform: scale(1.15); }
+
+    /* ── NAVBAR ─────────────────────────────────────────────── */
+    .navbar {
+      height: 56px;
+      background: rgba(10, 14, 23, 0.96);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+      position: relative; z-index: 50; flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .navbar-brand { display: flex; align-items: center; gap: 12px; }
+
+    .navbar-logo {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #06b6d4, #0284c7);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.35);
+    }
+
+    .navbar-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .navbar-title .accent { color: var(--cyan); }
+    .navbar-sub { font-size: 10px; color: var(--text-faint); font-family: monospace; margin-top: 1px; }
+
+    .navbar-center {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .queue-badge {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 14px;
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: 999px;
+      font-size: 11px; font-weight: 600; color: var(--amber);
+      font-family: monospace;
+    }
+
+    .queue-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--amber);
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 5px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: var(--text-muted); font-family: monospace;
+    }
+
+    .shortcut-bar {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 10px; color: var(--text-faint);
+    }
+    .shortcut-bar span { display: flex; align-items: center; gap: 4px; }
+
+    .navbar-right { display: flex; align-items: center; gap: 16px; }
+
+    .return-link {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted); text-decoration: none;
+      padding: 5px 12px;
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
+      transition: all .15s ease;
+    }
+    .return-link:hover { color: var(--cyan); border-color: rgba(34,211,238,0.4); background: rgba(34,211,238,0.05); }
+
+    /* ── WORKSPACE GRID ──────────────────────────────────────── */
+    .workspace {
+      display: grid;
+      grid-template-columns: 66% 34%;
+      height: calc(100vh - 56px);
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* ── LEFT: IMAGE VIEWER ──────────────────────────────────── */
+    .viewer-col {
+      display: flex; flex-direction: column;
+      background: #070a10;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Simplified top bar — minimal, just essentials */
+    .viewer-titlebar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 22px;
+      background: rgba(7, 10, 16, 0.8);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 10px; font-family: monospace; color: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    .viewer-tag {
+      padding: 2px 8px;
+      background: rgba(34,211,238,.08); border: 1px solid rgba(34,211,238,.2);
+      border-radius: 4px; font-size: 9px; font-weight: 700; color: var(--cyan);
+      letter-spacing: .06em;
+    }
+
+    .viewer-main {
+      flex: 1; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: #060910;
+    }
+
+    /* ── Layers ─────────────────────────────────────────── */
+    .layer-base,
+    .layer-heatmap,
+    .layer-boxes {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 560px; height: 560px;
+      border-radius: 50%;
+      transition: opacity .25s ease;
+      pointer-events: none;
+    }
+
+    .layer-base {
+      pointer-events: auto;  /* receives mouse events for magnifier */
+      overflow: hidden;
+      border-radius: 50%;
+      box-shadow: 0 0 60px rgba(0,0,0,.9), 0 0 0 1px rgba(34,211,238,.08);
+    }
+
+    .layer-heatmap {
+      pointer-events: none;
+      border-radius: 50%;
+      mix-blend-mode: hard-light;
+      overflow: hidden;
+    }
+
+    .layer-boxes { pointer-events: none; }
+
+    /* ── Magnifier Canvas ────────────────────────────────── */
+    #magnifier {
+      position: absolute;
+      width: 150px; height: 150px;
+      border-radius: 50%;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 18px rgba(34,211,238,.45), 0 0 40px rgba(34,211,238,.15), inset 0 0 0 1px rgba(34,211,238,.2);
+      pointer-events: none;
+      display: none;
+      z-index: 30;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #magnifier-canvas {
+      width: 150px; height: 150px;
+      display: block;
+    }
+
+    /* Magnifier crosshair */
+    #magnifier::before,
+    #magnifier::after {
+      content: '';
+      position: absolute;
+      background: rgba(34,211,238,.35);
+      pointer-events: none;
+      z-index: 2;
+    }
+    #magnifier::before { width: 1px; height: 100%; left: 50%; top: 0; }
+    #magnifier::after  { width: 100%; height: 1px; top: 50%; left: 0; }
+
+    /* ── Layer Controls ──────────────────────────────────── */
+    .viewer-controls {
+      padding: 10px 22px;
+      background: rgba(7,10,16,0.8);
+      border-top: 1px solid var(--border-subtle);
+      display: flex; align-items: center; gap: 24px;
+      flex-shrink: 0;
+    }
+
+    .controls-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--text-faint);
+    }
+
+    .toggle-group { display: flex; align-items: center; gap: 16px; }
+
+    .toggle-item {
+      display: flex; align-items: center; gap: 7px;
+      cursor: pointer; user-select: none;
+    }
+    .toggle-item input[type="checkbox"] { display: none; }
+
+    .toggle-box {
+      width: 32px; height: 18px; border-radius: 99px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border-mid);
+      position: relative; transition: background .2s, border-color .2s; flex-shrink: 0;
+    }
+    .toggle-box::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--text-faint); transition: transform .2s, background .2s;
+    }
+    .toggle-item input:checked + .toggle-box { border-color: var(--cyan-dim); background: rgba(34,211,238,.12); }
+    .toggle-item input:checked + .toggle-box::after { transform: translateX(14px); background: var(--cyan); }
+    .toggle-item input.amber:checked + .toggle-box { border-color: var(--amber-dim); background: rgba(251,191,36,.12); }
+    .toggle-item input.amber:checked + .toggle-box::after { background: var(--amber); }
+    .toggle-item input.red:checked + .toggle-box { border-color: #f87171; background: rgba(248,113,113,.12); }
+    .toggle-item input.red:checked + .toggle-box::after { background: var(--red); }
+
+    .toggle-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+    .toggle-label .dot {
+      display: inline-block; width: 7px; height: 7px;
+      border-radius: 50%; margin-right: 4px; vertical-align: middle;
+    }
+
+    .minimap {
+      margin-left: auto; display: flex; align-items: center; gap: 8px;
+      font-size: 10px; font-family: monospace; color: var(--text-faint);
+    }
+    .zoom-btn {
+      background: rgba(255,255,255,.04); border: 1px solid var(--border-mid);
+      color: var(--text-muted); width: 22px; height: 22px; border-radius: 4px;
+      cursor: pointer; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .zoom-btn:hover { color: var(--cyan); border-color: rgba(34,211,238,.4); }
+
+    /* ── RIGHT: DECISION PANEL — Breathable & Borderless ─── */
+    .decision-col {
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      overflow-y: auto;
+      overflow-x: hidden;
+      max-height: calc(100vh - 56px); /* navbar is 56px */
+      border-left: 1px solid var(--border-subtle);
+      padding-right: 0; /* scrollbar sits outside padding */
+    }
+
+    /* Polished slim scrollbar */
+    .decision-col::-webkit-scrollbar { width: 4px; }
+    .decision-col::-webkit-scrollbar-track {
+      background: rgba(255,255,255,.02);
+      border-radius: 4px;
+    }
+    .decision-col::-webkit-scrollbar-thumb {
+      background: rgba(34,211,238,.18);
+      border-radius: 4px;
+      transition: background .2s;
+    }
+    .decision-col::-webkit-scrollbar-thumb:hover {
+      background: rgba(34,211,238,.4);
+    }
+
+    /* Spacious, borderless panels — background-only differentiation */
+    .panel-block {
+      padding: 2rem 2rem;
+    }
+
+    .panel-block + .panel-block {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .block-label {
+      font-size: 9px; font-weight: 800; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-faint);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Patient info — just clean text, no wrappers */
+    .pt-grid {
+      display: grid; grid-template-columns: 1fr 1fr; row-gap: 1.25rem; column-gap: 1rem;
+    }
+
+    .pt-item-k {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-faint); margin-bottom: 3px;
+    }
+    .pt-item-v {
+      font-size: 13px; font-weight: 700; color: var(--text); font-family: monospace;
+    }
+    .pt-item-v.accent { color: var(--cyan); }
+    .pt-notes-v {
+      font-size: 12px; color: var(--text-muted); line-height: 1.5; font-family: inherit;
+    }
+
+    /* AI Result — bold, spacious */
+    .ai-grade-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 5px;
+      font-size: 10px; font-weight: 800; font-family: monospace;
+      letter-spacing: .04em; margin-bottom: 1rem;
+      background: rgba(248,113,113,.12);
+      border: 1px solid rgba(248,113,113,.3);
+      color: var(--red);
+    }
+
+    .ai-prediction-main {
+      font-size: 22px; font-weight: 900;
+      color: var(--text); letter-spacing: -.02em; line-height: 1.2;
+      margin-bottom: 1.75rem;
+    }
+    .ai-prediction-main em { font-style: normal; color: var(--red); }
+
+    .conf-header {
+      display: flex; justify-content: space-between;
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .conf-value { color: var(--green); font-family: monospace; font-size: 13px; font-weight: 800; }
+
+    .conf-track {
+      width: 100%; height: 6px;
+      background: rgba(255,255,255,.06);
+      border-radius: 999px; overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .conf-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
+      box-shadow: 0 0 10px rgba(34,197,94,.4);
+      transition: width .7s cubic-bezier(.4,0,.2,1);
+    }
+
+    .lesion-chips {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .lc {
+      padding: 4px 10px; border-radius: 5px;
+      font-size: 10px; font-weight: 700; font-family: monospace;
+    }
+    .lc.ma { background: rgba(248,113,113,.1); color: #f87171; }
+    .lc.he { background: rgba(251,191,36,.1); color: #fbbf24; }
+    .lc.ex { background: rgba(34,211,238,.1); color: #22d3ee; }
+    .lc.nv { background: rgba(167,139,250,.1); color: #a78bfa; }
+
+    /* Action Buttons — full width, spacious */
+    .approve-btn {
+      width: 100%; height: 56px;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .02em;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      box-shadow: 0 0 24px rgba(34,197,94,.25);
+      transition: all .18s; margin-bottom: 10px;
+    }
+    .approve-btn:hover { transform: translateY(-2px); box-shadow: 0 0 36px rgba(34,197,94,.4); }
+    .approve-btn:active { transform: translateY(0); }
+
+    .kbd-chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 7px; background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 4px; font-size: 10px; font-weight: 800; font-family: monospace;
+    }
+
+    .modify-btn {
+      width: 100%; height: 44px;
+      background: rgba(251,191,36,.07);
+      border: 1px solid rgba(251,191,36,.25);
+      border-radius: 10px;
+      color: var(--amber); font-size: 13px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all .15s;
+    }
+    .modify-btn:hover { background: rgba(251,191,36,.14); transform: translateY(-1px); }
+
+    /* Modify Panel */
+    .modify-panel {
+      display: none;
+      padding: 1.75rem 2rem;
+      background: rgba(251,191,36,.03);
+      border-top: 1px solid rgba(251,191,36,.12);
+      animation: fadeSlide .2s ease;
+    }
+    @keyframes fadeSlide { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    .modify-panel.open { display: block; }
+
+    .mp-label {
+      font-size: 9px; font-weight: 800; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--amber);
+      margin-bottom: 1.25rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .mp-label::before { content:''; display:inline-block; width:3px; height:12px; background:var(--amber); border-radius:2px; }
+
+    .mp-field { margin-bottom: 14px; }
+    .mp-field label { display:block; font-size:10px; font-weight:700; color:var(--text-muted); margin-bottom:5px; }
+
+    .mp-select, .mp-textarea {
+      width: 100%; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 7px;
+      color: var(--text); font-family: inherit; font-size: 12px; padding: 8px 10px;
+      outline: none; appearance: none; -webkit-appearance: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .mp-select { height: 36px; }
+    .mp-textarea { height: 80px; resize: none; }
+    .mp-select:focus, .mp-textarea:focus {
+      border-color: rgba(251,191,36,.5);
+      box-shadow: 0 0 0 3px rgba(251,191,36,.1);
+    }
+    .mp-select option { background: #141929; }
+
+    .submit-override-btn {
+      width: 100%; height: 38px;
+      background: linear-gradient(135deg, #d97706, #b45309);
+      border: none; border-radius: 7px;
+      color: #fff; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all .15s;
+    }
+    .submit-override-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+
+    /* Scan History — clean & borderless */
+    .history-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 1rem 0;
+    }
+    .history-item + .history-item {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .h-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-faint); flex-shrink: 0; margin-top: 4px;
+    }
+    .h-dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.4); }
+    .h-dot.warn { background: var(--amber); box-shadow: 0 0 6px rgba(251,191,36,.4); }
+
+    .h-text { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .h-time { font-size: 10px; color: var(--text-faint); font-family: monospace; margin-top: 2px; }
+
+    /* Empty / done state */
+    #empty-state {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 3rem 2rem; gap: 14px;
+    }
+    .empty-icon {
+      width: 60px; height: 60px; border-radius: 18px;
+      background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2);
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+    .empty-title { font-size: 18px; font-weight: 800; color: var(--green); }
+    .empty-sub { font-size: 13px; color: var(--text-muted); max-width: 240px; line-height: 1.5; }
+    .reload-btn {
+      margin-top: 8px; padding: 8px 20px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border-mid);
+      border-radius: 7px; color: var(--cyan);
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit;
+    }
+    .reload-btn:hover { background: rgba(34,211,238,.06); border-color: rgba(34,211,238,.35); }
+
+    /* ── TOAST ────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #141929;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.7);
+      z-index: 999;
+      transform: translateY(90px); opacity: 0;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+      min-width: 300px; max-width: 420px; pointer-events: none;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    .toast-icon {
+      width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+      background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.25);
+      color: var(--green); font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .toast-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .toast-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Amber confidence fill (Grade 1-2) ────────────────── */
+    .conf-fill.amber {
+      background: linear-gradient(90deg, #b45309, #fbbf24, #fde68a);
+      box-shadow: 0 0 10px rgba(251,191,36,.4);
+    }
+
+    /* ── Patient transition overlay ───────────────────────── */
+    #patient-loading-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(7, 10, 16, 0.92);
+      backdrop-filter: blur(8px);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1.25rem;
+      animation: fadeIn .2s ease;
+    }
+    #patient-loading-overlay.visible { display: flex; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    .plo-spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid rgba(34,211,238,.12);
+      border-top-color: var(--cyan);
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .plo-text {
+      font-size: 13px; font-weight: 700; color: var(--text-muted);
+      font-family: monospace; letter-spacing: .04em;
+    }
+    .plo-sub {
+      font-size: 10px; color: var(--text-faint);
+      font-family: monospace;
+    }
+
+    /* ── Hidden PDF source (off-screen) ──────────────────── */
+    #pdf-report {
+      position: fixed; top: -9999px; left: -9999px;
+      width: 740px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Arial, sans-serif;
+      background: #ffffff; color: #0f172a;
+      padding: 52px;
+    }
+  </style>
+  <!-- html2pdf.js — clinical PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+  <!-- ── NAVBAR ─────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="navbar-logo">👁</div>
+      <div>
+        <div class="navbar-title">OcuScan <span class="accent">AI</span> — Ophthalmologist Workstation</div>
+        <div class="navbar-sub">Radiology Reading Mode</div>
+      </div>
+    </div>
+
+    <div class="navbar-center">
+      <div class="queue-badge">
+        <div class="queue-dot"></div>
+        Queue: 1 Patient Waiting
+      </div>
+    </div>
+
+    <div class="navbar-right">
+      <div class="shortcut-bar">
+        <span><kbd class="kbd">SPC</kbd> Heatmap</span>
+        <span><kbd class="kbd">A</kbd> Approve</span>
+        <span><kbd class="kbd">M</kbd> Modify</span>
+      </div>
+      <a href="/" class="return-link">
+        <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Return to Portal
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── WORKSPACE ──────────────────────────────────────── -->
+  <div class="workspace" id="workspace">
+
+    <!-- ─── LEFT: IMAGE VIEWER ────────────────────────── -->
+    <div class="viewer-col">
+      <!-- Minimal titlebar -->
+      <div class="viewer-titlebar">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="viewer-tag">FUNDUS · OS</span>
+          <span>PT-8922 · Age 54 · Left Eye</span>
+        </div>
+        <span style="color:var(--cyan)">Inference: 182ms · AI v2.4</span>
+      </div>
+
+      <!-- Viewer canvas -->
+      <div class="viewer-main" id="viewer-main">
+
+        <!-- ─ LAYER: Base Fundus SVG ─ -->
+        <div class="layer-base" id="layer-base">
+          <svg id="fundus-svg" width="560" height="560" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="retBg" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#5c1a00"/>
+                <stop offset="40%" stop-color="#3d1000"/>
+                <stop offset="80%" stop-color="#220800"/>
+                <stop offset="100%" stop-color="#0a0200"/>
+              </radialGradient>
+              <radialGradient id="illum" cx="42%" cy="45%" r="38%">
+                <stop offset="0%" stop-color="#c44200" stop-opacity="0.5"/>
+                <stop offset="60%" stop-color="#7a2000" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <radialGradient id="discGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#fff8dc"/>
+                <stop offset="40%" stop-color="#fde68a"/>
+                <stop offset="80%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#d97706"/>
+              </radialGradient>
+              <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                <stop offset="60%" stop-color="transparent"/>
+                <stop offset="100%" stop-color="#000000" stop-opacity="0.8"/>
+              </radialGradient>
+              <clipPath id="circleClip">
+                <circle cx="280" cy="280" r="278"/>
+              </clipPath>
+              <filter id="blur1"><feGaussianBlur stdDeviation="1"/></filter>
+              <filter id="blur4"><feGaussianBlur stdDeviation="4"/></filter>
+              <filter id="vb"><feGaussianBlur stdDeviation="0.6"/></filter>
+            </defs>
+            <g clip-path="url(#circleClip)">
+              <circle cx="280" cy="280" r="280" fill="url(#retBg)"/>
+              <circle cx="280" cy="280" r="280" fill="url(#illum)"/>
+              <circle cx="280" cy="280" r="220" fill="none" stroke="#5a1800" stroke-width="120" opacity="0.3" filter="url(#blur4)"/>
+              <!-- Optic Disc -->
+              <circle cx="168" cy="265" r="42" fill="url(#discGlow)" filter="url(#blur1)"/>
+              <circle cx="168" cy="265" r="28" fill="#fff9e6" opacity="0.9"/>
+              <circle cx="168" cy="265" r="14" fill="#fde68a" opacity="0.7"/>
+              <!-- Macula -->
+              <circle cx="310" cy="285" r="48" fill="#1a0600" opacity="0.7"/>
+              <circle cx="310" cy="285" r="28" fill="#0d0300" opacity="0.6"/>
+              <!-- Vessels -->
+              <g filter="url(#vb)" opacity="0.85">
+                <path d="M168,240 Q200,195 250,190 Q300,185 340,175 Q390,165 430,172 Q460,178 490,195" fill="none" stroke="#d04800" stroke-width="4" stroke-linecap="round"/>
+                <path d="M168,240 Q200,195 250,190 Q300,185 340,175 Q390,165 430,172 Q460,178 490,195" fill="none" stroke="#ff6520" stroke-width="2" stroke-linecap="round"/>
+                <path d="M168,290 Q200,340 255,360 Q305,378 355,375 Q400,372 440,360 Q470,350 500,335" fill="none" stroke="#d04800" stroke-width="4" stroke-linecap="round"/>
+                <path d="M168,290 Q200,340 255,360 Q305,378 355,375 Q400,372 440,360 Q470,350 500,335" fill="none" stroke="#ff6520" stroke-width="2" stroke-linecap="round"/>
+                <path d="M168,258 Q210,215 265,205 Q315,198 365,188 Q405,182 445,185 Q475,188 505,198" fill="none" stroke="#7a1c00" stroke-width="5" stroke-linecap="round"/>
+                <path d="M168,278 Q210,320 268,342 Q320,362 370,360 Q415,358 455,345 Q480,337 510,322" fill="none" stroke="#7a1c00" stroke-width="5" stroke-linecap="round"/>
+                <path d="M250,190 Q270,215 268,242" fill="none" stroke="#b84000" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M340,175 Q350,210 342,240" fill="none" stroke="#b84000" stroke-width="2" stroke-linecap="round"/>
+                <path d="M430,172 Q435,200 428,230" fill="none" stroke="#b84000" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M255,360 Q268,330 268,310" fill="none" stroke="#b84000" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M355,375 Q355,345 348,315" fill="none" stroke="#b84000" stroke-width="2" stroke-linecap="round"/>
+                <path d="M168,240 Q145,218 118,200 Q92,184 68,175" fill="none" stroke="#d04800" stroke-width="3" stroke-linecap="round"/>
+                <path d="M168,290 Q144,315 116,328 Q88,340 60,345" fill="none" stroke="#d04800" stroke-width="3" stroke-linecap="round"/>
+              </g>
+              <!-- Exudates -->
+              <ellipse cx="362" cy="315" rx="8" ry="5" fill="#fde68a" opacity="0.6" transform="rotate(-15,362,315)"/>
+              <ellipse cx="380" cy="330" rx="6" ry="4" fill="#fef3c7" opacity="0.55" transform="rotate(20,380,330)"/>
+              <ellipse cx="340" cy="326" rx="5" ry="3" fill="#fde68a" opacity="0.5"/>
+              <!-- Haemorrhages -->
+              <ellipse cx="298" cy="310" rx="7" ry="5" fill="#800000" opacity="0.7" transform="rotate(10,298,310)"/>
+              <ellipse cx="340" cy="290" rx="5" ry="4" fill="#6b0000" opacity="0.65"/>
+              <ellipse cx="320" cy="250" rx="6" ry="4" fill="#700000" opacity="0.6" transform="rotate(-20,320,250)"/>
+              <!-- Vignette -->
+              <circle cx="280" cy="280" r="280" fill="url(#vignette)"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ─ LAYER: AI Grad-CAM Heatmap ─ -->
+        <div class="layer-heatmap" id="layer-heatmap">
+          <svg id="heatmap-svg" width="560" height="560" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="hm1" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ff0000" stop-opacity="0.72"/>
+                <stop offset="50%" stop-color="#ff6600" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <radialGradient id="hm2" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ff4400" stop-opacity="0.6"/>
+                <stop offset="55%" stop-color="#ffaa00" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <radialGradient id="hm3" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.55"/>
+                <stop offset="60%" stop-color="#ff8800" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <radialGradient id="hm4" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ff2200" stop-opacity="0.5"/>
+                <stop offset="55%" stop-color="#ff5500" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <radialGradient id="hm5" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ee4400" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="transparent"/>
+              </radialGradient>
+              <clipPath id="circleClip2"><circle cx="280" cy="280" r="275"/></clipPath>
+              <filter id="heatBlur"><feGaussianBlur stdDeviation="18"/></filter>
+            </defs>
+            <g clip-path="url(#circleClip2)" filter="url(#heatBlur)">
+              <ellipse cx="370" cy="320" rx="80" ry="65" fill="url(#hm1)"/>
+              <ellipse cx="300" cy="300" rx="70" ry="60" fill="url(#hm2)"/>
+              <ellipse cx="340" cy="240" rx="65" ry="50" fill="url(#hm3)"/>
+              <ellipse cx="315" cy="285" rx="50" ry="42" fill="url(#hm4)"/>
+              <ellipse cx="255" cy="345" rx="55" ry="45" fill="url(#hm5)"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ─ LAYER: Bounding Boxes ─ -->
+        <svg class="layer-boxes" id="layer-boxes" width="560" height="560" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
+          <!-- MA boxes -->
+          <rect x="295" y="302" width="22" height="16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3,2" rx="2"/>
+          <rect x="295" y="291" width="22" height="11" fill="rgba(248,113,113,0.15)" rx="2"/>
+          <text x="296" y="300" fill="#f87171" font-size="8" font-family="monospace" font-weight="700">MA·01</text>
+
+          <rect x="332" y="282" width="18" height="14" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3,2" rx="2"/>
+          <rect x="332" y="271" width="26" height="11" fill="rgba(248,113,113,0.15)" rx="2"/>
+          <text x="333" y="280" fill="#f87171" font-size="8" font-family="monospace" font-weight="700">MA·02</text>
+
+          <rect x="316" y="244" width="14" height="11" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3,2" rx="2"/>
+          <rect x="316" y="233" width="26" height="11" fill="rgba(248,113,113,0.15)" rx="2"/>
+          <text x="317" y="242" fill="#f87171" font-size="8" font-family="monospace" font-weight="700">MA·03</text>
+
+          <rect x="249" y="337" width="16" height="12" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="3,2" rx="2"/>
+          <rect x="249" y="326" width="26" height="11" fill="rgba(248,113,113,0.15)" rx="2"/>
+          <text x="250" y="335" fill="#f87171" font-size="8" font-family="monospace" font-weight="700">MA·04</text>
+
+          <!-- HE box -->
+          <rect x="338" y="304" width="44" height="32" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,2" rx="3"/>
+          <rect x="338" y="293" width="22" height="11" fill="rgba(251,191,36,0.15)" rx="2"/>
+          <text x="339" y="302" fill="#fbbf24" font-size="8" font-family="monospace" font-weight="700">HE·01</text>
+
+          <!-- EX box -->
+          <rect x="350" y="305" width="52" height="38" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,2" rx="3"/>
+          <rect x="392" y="303" width="22" height="11" fill="rgba(34,211,238,0.15)" rx="2"/>
+          <text x="393" y="312" fill="#22d3ee" font-size="8" font-family="monospace" font-weight="700">EX·01</text>
+
+          <!-- Grade label (top-left of image, minimal) -->
+          <rect x="14" y="14" width="100" height="20" fill="rgba(248,113,113,0.18)" rx="4" stroke="rgba(248,113,113,0.35)" stroke-width="0.5"/>
+          <text x="20" y="27" fill="#f87171" font-size="9" font-family="monospace" font-weight="700">Grade 3 · Severe DR</text>
+        </svg>
+
+        <!-- Magnifier (follows cursor) -->
+        <div id="magnifier">
+          <canvas id="magnifier-canvas" width="150" height="150"></canvas>
+        </div>
+
+      </div><!-- /viewer-main -->
+
+      <!-- Layer Toggles -->
+      <div class="viewer-controls">
+        <span class="controls-label">Layers</span>
+        <div class="toggle-group">
+          <label class="toggle-item">
+            <input type="checkbox" id="chk-base" checked>
+            <div class="toggle-box"></div>
+            <span class="toggle-label"><span class="dot" style="background:#e2e8f0"></span>Base Image</span>
+          </label>
+          <label class="toggle-item">
+            <input type="checkbox" id="chk-heatmap" class="amber" checked>
+            <div class="toggle-box"></div>
+            <span class="toggle-label"><span class="dot" style="background:#fbbf24"></span>AI Grad-CAM</span>
+          </label>
+          <label class="toggle-item">
+            <input type="checkbox" id="chk-boxes" class="red" checked>
+            <div class="toggle-box"></div>
+            <span class="toggle-label"><span class="dot" style="background:#f87171"></span>Pathology Highlights</span>
+          </label>
+        </div>
+
+        <!-- Magnifier toggle -->
+        <button class="mag-toggle-btn" id="mag-toggle-btn" title="Toggle Magic Glass (3× Magnifier)">
+          <span class="mag-icon">🔍</span>
+          <span class="mag-toggle-label">Magic Glass</span>
+        </button>
+
+        <div class="minimap">
+          <button class="zoom-btn" id="zoom-out">−</button>
+          <span id="zoom-level">100%</span>
+          <button class="zoom-btn" id="zoom-in">+</button>
+        </div>
+      </div>
+    </div><!-- /viewer-col -->
+
+    <!-- ─── RIGHT: DECISION PANEL (Breathable) ────────── -->
+    <div class="decision-col" id="decision-col">
+
+      <!-- Patient Info — no borders, pure whitespace -->
+      <div class="panel-block">
+        <div class="block-label">Patient &amp; Scan</div>
+        <div class="pt-grid">
+          <div>
+            <div class="pt-item-k">Patient ID</div>
+            <div class="pt-item-v accent" id="pt-id">PT-8922</div>
+          </div>
+          <div>
+            <div class="pt-item-k">Age</div>
+            <div class="pt-item-v" id="pt-age">54 yrs</div>
+          </div>
+          <div>
+            <div class="pt-item-k">Eye</div>
+            <div class="pt-item-v" id="pt-eye">OS (Left Eye)</div>
+          </div>
+          <div>
+            <div class="pt-item-k">Received</div>
+            <div class="pt-item-v" id="pt-received">06:04 UTC</div>
+          </div>
+          <div style="grid-column:1/-1">
+            <div class="pt-item-k">Clinical Notes</div>
+            <div class="pt-notes-v" id="pt-notes">T2DM 12yrs · HbA1c 9.2% · Hypertension · Prev Grade 2</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Results -->
+      <div class="panel-block">
+        <div class="block-label">AI Diagnostic Result</div>
+
+        <div class="ai-grade-badge" id="ai-grade-badge">ETDRS GRADE 3</div>
+
+        <div class="ai-prediction-main">
+          AI Prediction:<br>
+          <em id="ai-prediction-em">Grade 3 (Severe DR)</em>
+        </div>
+
+        <div class="conf-header">
+          <span>Confidence</span>
+          <span class="conf-value" id="conf-value-label">94%</span>
+        </div>
+        <div class="conf-track">
+          <div class="conf-fill" id="conf-fill" style="width:0%"></div>
+        </div>
+
+        <div class="lesion-chips" id="lesion-chips">
+          <span class="lc ma">MA ×7</span>
+          <span class="lc he">HE ×3</span>
+          <span class="lc ex">EX ×4</span>
+          <span class="lc nv">NV: Absent</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="panel-block">
+        <div class="block-label">Ophthalmologist Decision</div>
+
+        <button class="approve-btn" id="approve-btn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="kbd-chip">A</span>
+          Approve AI Decision
+        </button>
+
+        <button class="modify-btn" id="modify-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          <span class="kbd-chip" style="background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.4);color:var(--amber)">M</span>
+          Modify Grade
+        </button>
+      </div>
+
+      <!-- Modify Panel (hidden) -->
+      <div class="modify-panel" id="modify-panel">
+        <div class="mp-label">Override Grading</div>
+
+        <div class="mp-field">
+          <label for="mp-grade">Corrected DR Grade (ETDRS)</label>
+          <select class="mp-select" id="mp-grade">
+            <option value="">Select grade...</option>
+            <option value="0">Grade 0 — No DR</option>
+            <option value="1">Grade 1 — Mild NPDR</option>
+            <option value="2">Grade 2 — Moderate NPDR</option>
+            <option value="3" selected>Grade 3 — Severe NPDR (AI)</option>
+            <option value="4">Grade 4 — Proliferative DR (PDR)</option>
+          </select>
+        </div>
+
+        <div class="mp-field">
+          <label for="mp-notes">Clinical Justification</label>
+          <textarea class="mp-textarea" id="mp-notes" placeholder="e.g. AI overestimated severity — cotton wool spots misclassified. Defer laser."></textarea>
+        </div>
+
+        <button class="submit-override-btn" id="submit-override-btn">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          Submit Override &amp; Generate Report
+        </button>
+      </div>
+
+      <!-- Scan History — clean, no boxes, rich content for scrollability -->
+      <div class="panel-block" style="flex:1">
+        <div class="block-label">Scan History</div>
+
+        <!-- Visit 1 — most recent -->
+        <div class="history-item">
+          <div class="h-dot warn"></div>
+          <div>
+            <div class="h-text">Grade 2 (Moderate NPDR) — Dr. R. Patel</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              4 MA, 2 HE. Referred for annual follow-up. Metformin &amp; Lisinopril ongoing. No laser required.
+            </div>
+            <div class="h-time">2025-03-10 · 18 months ago</div>
+          </div>
+        </div>
+
+        <!-- Visit 2 -->
+        <div class="history-item">
+          <div class="h-dot ok"></div>
+          <div>
+            <div class="h-text">Grade 1 (Mild NPDR) — Dr. A. Okonkwo</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              1 MA detected temporal to disc. No hard exudates. Patient counselled on glycaemic control &amp; diet.
+            </div>
+            <div class="h-time">2023-11-22 · 34 months ago</div>
+          </div>
+        </div>
+
+        <!-- Visit 3 -->
+        <div class="history-item">
+          <div class="h-dot ok"></div>
+          <div>
+            <div class="h-text">Grade 1 (Mild NPDR) — Dr. A. Okonkwo</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              Repeat scan 6 months post-diagnosis. Stable. HbA1c improved to 8.1% (from 9.6%). Continue monitoring.
+            </div>
+            <div class="h-time">2023-05-14 · 40 months ago</div>
+          </div>
+        </div>
+
+        <!-- Visit 4 -->
+        <div class="history-item">
+          <div class="h-dot"></div>
+          <div>
+            <div class="h-text">Grade 0 — No DR Detected · Dr. R. Patel</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              First diabetic eye screen. 45° ETDRS Field 1 &amp; 2 bilateral. Optic disc normal. Macula flat. No lesions.
+            </div>
+            <div class="h-time">2022-11-30 · 46 months ago</div>
+          </div>
+        </div>
+
+        <!-- Visit 5 -->
+        <div class="history-item">
+          <div class="h-dot"></div>
+          <div>
+            <div class="h-text">Grade 0 — No DR Detected · Dr. S. Mehta</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              Annual routine screen. Both eyes clear. IOP normal bilaterally. Referred back to GP. HbA1c: 9.6%.
+            </div>
+            <div class="h-time">2022-04-05 · 53 months ago</div>
+          </div>
+        </div>
+
+        <!-- Visit 6 — first contact -->
+        <div class="history-item">
+          <div class="h-dot"></div>
+          <div>
+            <div class="h-text">Initial Assessment — Type 2 DM Diagnosis · Dr. S. Mehta</div>
+            <div class="h-text" style="margin-top:3px;font-size:11px;color:var(--text-faint)">
+              T2DM confirmed. Referred for baseline retinal photography. Fundus clear bilaterally. Annual screening initiated.
+            </div>
+            <div class="h-time">2021-09-18 · 60 months ago</div>
+          </div>
+        </div>
+
+        <!-- Spacer to ensure panel-block bottom padding renders fully before scrollbar end -->
+        <div style="height:1.5rem"></div>
+      </div>
+
+
+
+
+
+      <!-- Empty state (after approve / submit) -->
+      <div id="empty-state">
+        <div class="empty-icon">✓</div>
+        <div class="empty-title">Report Generated &amp; Saved</div>
+        <div class="empty-sub">Case PT-8922 finalized. Queue is now empty — no further patients.</div>
+        <button class="reload-btn" onclick="window.location.reload()">Reload for Next Session</button>
+      </div>
+
+    </div><!-- /decision-col -->
+  </div><!-- /workspace -->
+
+  <!-- Patient transition loading overlay -->
+  <div id="patient-loading-overlay">
+    <div class="plo-spinner"></div>
+    <div class="plo-text" id="plo-text">Loading Next Scan...</div>
+    <div class="plo-sub" id="plo-sub">Fetching PT-9014 · OD · Right Eye</div>
+  </div>
+
+  <!-- Hidden PDF source (rendered off-screen, captured by html2pdf) -->
+  <div id="pdf-report">
+    <!-- ── HEADER ── -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;margin-bottom:24px;border-bottom:2.5px solid #0284c7;">
+      <div>
+        <div style="font-size:24px;font-weight:900;color:#0284c7;letter-spacing:-.02em;margin-bottom:2px;">OcuScan AI</div>
+        <div style="font-size:11px;color:#64748b;font-family:monospace;font-weight:500;">Clinical Retinal Suite v2.4 · HIPAA Compliant</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#94a3b8;font-family:monospace;line-height:1.7;">
+        <div>Hospital Node #8123</div>
+        <div id="pdf-datetime" style="color:#64748b;"></div>
+        <div style="color:#16a34a;font-weight:700;margin-top:2px;">● ISO 13485 Certified</div>
+      </div>
+    </div>
+
+    <!-- ── TITLE ── -->
+    <div style="margin-bottom:28px;">
+      <div style="font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;font-family:monospace;">OPHTHALMOLOGY DIAGNOSTIC REPORT</div>
+      <h1 style="font-size:22px;font-weight:900;color:#0f172a;margin:0 0 4px 0;letter-spacing:-.02em;">Fundus Photography AI Analysis</h1>
+      <div style="font-size:11px;color:#94a3b8;font-family:monospace;">Case ID: OCS-2024-8922 · Pipeline: OcuScan AI v2.4 · Mode: Automated Grade</div>
+    </div>
+
+    <!-- ── PATIENT GRID ── -->
+    <div style="background:#f8fafc;border-radius:10px;padding:22px 24px;margin-bottom:20px;border:1px solid #e2e8f0;">
+      <div style="font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:16px;font-family:monospace;">PATIENT INFORMATION</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Patient ID</div>
+          <div style="font-size:13px;font-weight:700;color:#0284c7;font-family:monospace;">PT-8922</div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Age</div>
+          <div style="font-size:13px;font-weight:700;font-family:monospace;">54 years</div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Eye Examined</div>
+          <div style="font-size:13px;font-weight:700;font-family:monospace;">OS (Left Eye)</div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Scan Received</div>
+          <div style="font-size:13px;font-weight:700;font-family:monospace;">06:04 UTC</div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Device</div>
+          <div style="font-size:13px;font-weight:700;font-family:monospace;">TOPCON TRC-NW400</div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Image Format</div>
+          <div style="font-size:13px;font-weight:700;font-family:monospace;">DICOM / JPG 45°</div>
+        </div>
+        <div style="grid-column:1/-1;margin-top:4px;">
+          <div style="font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;font-family:monospace;">Clinical Notes</div>
+          <div style="font-size:12px;color:#475569;line-height:1.5;">T2DM 12yrs · HbA1c 9.2% · Hypertension · Prev Grade 2 (Moderate NPDR) at 18-month review</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI RESULTS ── -->
+    <div style="background:#fff1f2;border-radius:10px;padding:22px 24px;margin-bottom:20px;border:1px solid #fecdd3;">
+      <div style="font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:16px;font-family:monospace;">AI DIAGNOSTIC RESULT</div>
+      <div style="display:inline-block;padding:3px 10px;border-radius:5px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#dc2626;font-size:9px;font-weight:800;font-family:monospace;letter-spacing:.04em;margin-bottom:10px;">ETDRS GRADE 3 · SEVERE NPDR</div>
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:14px;letter-spacing:-.02em;">Grade 3 — Severe Non-Proliferative DR</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="font-size:11px;color:#64748b;white-space:nowrap;font-weight:600;">AI Confidence:</span>
+        <div style="flex:1;height:7px;background:#fecdd3;border-radius:999px;overflow:hidden;">
+          <div style="height:100%;width:94%;background:linear-gradient(90deg,#16a34a,#22c55e,#4ade80);border-radius:999px;"></div>
+        </div>
+        <span style="font-size:13px;font-weight:800;color:#16a34a;font-family:monospace;white-space:nowrap;">94%</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span style="padding:3px 9px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(220,38,38,.08);color:#dc2626;font-family:monospace;border:1px solid rgba(220,38,38,.2);">MA ×7 — Microaneurysms</span>
+        <span style="padding:3px 9px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(180,83,9,.08);color:#b45309;font-family:monospace;border:1px solid rgba(180,83,9,.2);">HE ×3 — Hemorrhages</span>
+        <span style="padding:3px 9px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(2,132,199,.08);color:#0284c7;font-family:monospace;border:1px solid rgba(2,132,199,.2);">EX ×4 — Hard Exudates</span>
+        <span style="padding:3px 9px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(124,58,237,.08);color:#7c3aed;font-family:monospace;border:1px solid rgba(124,58,237,.2);">Neovascularization: Absent</span>
+      </div>
+    </div>
+
+    <!-- ── OPHTHALMOLOGIST DECISION ── -->
+    <div style="background:#f0fdf4;border-radius:10px;padding:22px 24px;margin-bottom:28px;border:1px solid #bbf7d0;">
+      <div style="font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:12px;font-family:monospace;">OPHTHALMOLOGIST DECISION</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="width:24px;height:24px;border-radius:6px;background:#dcfce7;border:1px solid #bbf7d0;display:flex;align-items:center;justify-content:center;color:#16a34a;font-size:14px;font-weight:900;">✓</div>
+        <span style="font-size:16px;font-weight:800;color:#16a34a;">AI Decision Approved</span>
+      </div>
+      <div style="font-size:12px;color:#475569;line-height:1.5;">Grade 3 (Severe NPDR) confirmed. Patient referred for laser photocoagulation evaluation. Endocrinology co-management advised. Next review in 3 months.</div>
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <div style="border-top:1px solid #e2e8f0;padding-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:#94a3b8;font-family:monospace;">
+      <span>OcuScan AI Clinical Suite v2.4 · HIPAA Compliant · ISO 13485 · CDSCO &amp; NABH Guidelines</span>
+      <span>tech@ocuscan.local | +91 1800-XXX-XXXX</span>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast">
+    <div class="toast-icon" id="toast-icon">✓</div>
+    <div>
+      <div class="toast-title" id="toast-title">Ready</div>
+      <div class="toast-sub" id="toast-sub"></div>
+    </div>
+  </div>
+
+  <script src="./static/js/auth.js"></script>
+  <script src="./static/js/store.js"></script>
+  <script src="./static/js/doctor.js"></script>
+</body>
+</html>

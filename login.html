@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OcuScan AI — Secure Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #090e17;
+      --surface:     #0f172a;
+      --surface-2:   #162033;
+      --border:      rgba(255,255,255,0.08);
+      --border-mid:  rgba(255,255,255,0.14);
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0891b2;
+      --green:       #22c55e;
+      --red:         #f43f5e;
+    }
+
+    html, body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Animated background grid ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Radial glow ── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 500px;
+      background: radial-gradient(ellipse at center, rgba(6,182,212,0.10) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Page wrapper ── */
+    .page-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Logo / Wordmark ── */
+    .logo-wrap {
+      text-align: center;
+      margin-bottom: 2.75rem;
+    }
+
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 1rem auto;
+      background: linear-gradient(135deg, #0284c7, #22d3ee);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 0 32px rgba(6,182,212,0.40), 0 0 64px rgba(6,182,212,0.15);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { box-shadow: 0 0 32px rgba(6,182,212,0.40), 0 0 64px rgba(6,182,212,0.15); }
+      50%       { box-shadow: 0 0 48px rgba(6,182,212,0.60), 0 0 96px rgba(6,182,212,0.25); }
+    }
+
+    .logo-title {
+      font-size: 1.85rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+
+    .logo-title .accent { color: var(--cyan); }
+
+    .logo-sub {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Login Card ── */
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border-mid);
+      border-radius: 1.25rem;
+      padding: 2.25rem 2.25rem 2rem 2.25rem;
+      box-shadow:
+        0 0 0 1px rgba(34,211,238,0.05),
+        0 20px 60px rgba(0,0,0,0.55),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .card-header {
+      margin-bottom: 1.75rem;
+      text-align: center;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+
+    .card-desc {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 5px;
+    }
+
+    /* ── Divider ── */
+    .card-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 1.75rem;
+    }
+
+    /* ── Form Fields ── */
+    .form-group {
+      margin-bottom: 1.1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .form-input-wrap {
+      position: relative;
+    }
+
+    .form-input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 11px 12px 11px 38px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-mid);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .form-input::placeholder { color: var(--text-dim); }
+
+    .form-input:focus {
+      border-color: var(--cyan-dim);
+      box-shadow: 0 0 0 3px rgba(34,211,238,0.12);
+    }
+
+    /* Password visibility toggle */
+    .pw-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      line-height: 1;
+    }
+    .pw-toggle:hover { color: var(--text-muted); }
+
+    /* ── Error message ── */
+    #auth-error {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(244,63,94,0.10);
+      border: 1px solid rgba(244,63,94,0.28);
+      border-radius: 7px;
+      color: #fda4af;
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      animation: shakeError 0.35s ease;
+    }
+
+    @keyframes shakeError {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    #auth-error.visible { display: flex; }
+
+    /* ── Submit Button ── */
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 0.5rem;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.18s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 16px rgba(6,182,212,0.30);
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      opacity: 0.92;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(6,182,212,0.45);
+    }
+
+    .submit-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .btn-spinner {
+      display: none;
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+
+    /* ── Evaluator Quick Access ── */
+    .quick-access {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .quick-access-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .quick-access-pills {
+      display: flex;
+      gap: 8px;
+    }
+
+    .demo-pill {
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s ease;
+      letter-spacing: 0.01em;
+    }
+
+    .demo-pill-tech {
+      background: rgba(34,211,238,0.07);
+      border-color: rgba(34,211,238,0.22);
+      color: #67e8f9;
+    }
+    .demo-pill-tech:hover {
+      background: rgba(34,211,238,0.15);
+      border-color: rgba(34,211,238,0.50);
+      color: #a5f3fc;
+      box-shadow: 0 0 14px rgba(34,211,238,0.18);
+    }
+
+    .demo-pill-doc {
+      background: rgba(251,191,36,0.07);
+      border-color: rgba(251,191,36,0.22);
+      color: #fcd34d;
+    }
+    .demo-pill-doc:hover {
+      background: rgba(251,191,36,0.15);
+      border-color: rgba(251,191,36,0.50);
+      color: #fde68a;
+      box-shadow: 0 0 14px rgba(251,191,36,0.18);
+    }
+
+    .demo-pill:active {
+      transform: scale(0.96);
+    }
+
+
+    /* ── Footer ── */
+    .login-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 10.5px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+
+    .login-footer .back-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+      transition: color 0.15s;
+    }
+    .login-footer .back-link:hover { color: var(--cyan); }
+
+    /* Security badge strip */
+    .security-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      margin-top: 2rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .sec-badge {
+      font-size: 9.5px;
+      font-family: monospace;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sec-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px rgba(34,197,94,0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-wrap">
+
+    <!-- Logo / Wordmark -->
+    <div class="logo-wrap">
+      <div class="logo-icon">👁</div>
+      <div class="logo-title">OcuScan <span class="accent">AI</span></div>
+      <div class="logo-sub">Clinical Retinal Suite v2.4 · Secure Gateway</div>
+    </div>
+
+    <!-- Login Card -->
+    <div class="login-card">
+      <div class="card-header">
+        <div class="card-title">Authenticated Clinical Access</div>
+        <div class="card-desc">Role-based portal. Credentials are verified before workspace access.</div>
+      </div>
+      <div class="card-divider"></div>
+
+      <form id="login-form" autocomplete="off" novalidate>
+
+        <!-- Error Banner -->
+        <div id="auth-error" role="alert">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" style="flex-shrink:0">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          <span id="auth-error-text">Invalid credentials or unauthorized role.</span>
+        </div>
+
+        <!-- Staff ID -->
+        <div class="form-group">
+          <label class="form-label" for="username">Staff ID / Username</label>
+          <div class="form-input-wrap">
+            <span class="form-input-icon">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </span>
+            <input
+              id="username"
+              type="text"
+              class="form-input"
+              placeholder="e.g. tech_demo"
+              spellcheck="false"
+              autocomplete="off"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="form-input-wrap">
+            <span class="form-input-icon">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </span>
+            <input
+              id="password"
+              type="password"
+              class="form-input"
+              placeholder="Enter your password"
+              required
+            />
+            <button type="button" class="pw-toggle" id="pw-toggle" title="Toggle password visibility">
+              <svg id="pw-eye" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="submit-btn" id="submit-btn">
+          <div class="btn-spinner" id="btn-spinner"></div>
+          <svg id="btn-icon" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          Secure Login
+        </button>
+
+      </form>
+
+      <!-- Evaluator Quick Access -->
+      <div class="quick-access">
+        <span class="quick-access-label">Evaluator Quick Access</span>
+        <div class="quick-access-pills">
+          <button type="button" class="demo-pill demo-pill-tech" id="demo-tech-btn">
+            📤 Technician Demo
+          </button>
+          <button type="button" class="demo-pill demo-pill-doc" id="demo-doc-btn">
+            🩺 Doctor Demo
+          </button>
+        </div>
+      </div>
+
+      <!-- Security Badge Strip -->
+      <div class="security-strip">
+        <div class="sec-badge"><div class="sec-dot"></div>TLS 1.3</div>
+        <div class="sec-badge"><div class="sec-dot"></div>HIPAA Compliant</div>
+        <div class="sec-badge"><div class="sec-dot"></div>AES-256 Session</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="login-footer">
+      <div>OcuScan AI Clinical Suite v2.4 · Hospital Node #8123</div>
+      <a href="index.html" class="back-link">
+        <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Return to Public Portal
+      </a>
+    </div>
+
+  </div>
+
+  <script src="./static/js/auth.js"></script>
+</body>
+</html>
