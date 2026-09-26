@@ -330,7 +330,7 @@ def test_result_always_has_all_keys(tmp_path):
     with patch("pipeline.report.run_quality_gate", return_value=_make_quality_result("Reject")):
         result = run_full_pipeline(str(img_file))
 
-    expected_keys = {"phase1", "phase2", "phase3", "phase4", "stopped_at_phase1", "error"}
+    expected_keys = {"phase1", "phase2", "phase3", "phase4", "stopped_at_phase1", "error", "timings"}
     assert set(result.keys()) == expected_keys
 
     # Phase 4 must always have "label" == "model attention"

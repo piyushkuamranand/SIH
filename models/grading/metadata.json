@@ -1,0 +1,138 @@
+{
+  "model_name": "resnet50_dr_grader_imagenet",
+  "model_version": "2.0.0",
+  "input_size": [
+    224,
+    224
+  ],
+  "channels": 3,
+  "normalization": {
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  },
+  "model_file": "grading_model.onnx",
+  "framework": "onnx",
+  "training_dataset": "APTOS 2019 (3336 train rows) + IDRiD grading-train (non-sealed, 413 total images) combined, near-duplicate-aware cross-dataset stratified split (train=3741, val=334). DDR NOT used. IDRiD grading-TEST (103 images, sealed) NOT used.",
+  "preprocessing": [
+    "fov_crop",
+    "resize",
+    "clahe",
+    "normalize",
+    "resize_to_input_size",
+    "imagenet_normalize"
+  ],
+  "eval_metrics": {
+    "val_qwk": 0.8879509988528883,
+    "val_referable_sensitivity": 0.8938547486033519,
+    "val_referable_specificity": 0.8903225806451613,
+    "val_macro_f1": 0.7154411445783855,
+    "val_confusion_matrix": [
+      [
+        84,
+        11,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        42,
+        17,
+        0,
+        0
+      ],
+      [
+        2,
+        16,
+        81,
+        4,
+        2
+      ],
+      [
+        0,
+        0,
+        8,
+        18,
+        10
+      ],
+      [
+        0,
+        1,
+        7,
+        4,
+        26
+      ]
+    ],
+    "val_per_class": [
+      {
+        "class": 0,
+        "sensitivity": 0.8842105263157894,
+        "specificity": 0.9874476987447699,
+        "support": 95
+      },
+      {
+        "class": 1,
+        "sensitivity": 0.7,
+        "specificity": 0.8978102189781022,
+        "support": 60
+      },
+      {
+        "class": 2,
+        "sensitivity": 0.7714285714285715,
+        "specificity": 0.8602620087336245,
+        "support": 105
+      },
+      {
+        "class": 3,
+        "sensitivity": 0.5,
+        "specificity": 0.9731543624161074,
+        "support": 36
+      },
+      {
+        "class": 4,
+        "sensitivity": 0.6842105263157895,
+        "specificity": 0.9594594594594594,
+        "support": 38
+      }
+    ],
+    "calibration": {
+      "temperature": 2.8,
+      "ece_before": 0.16554671597338005,
+      "ece_after": 0.04602308508878697,
+      "brier_before": 0.41959106338291363,
+      "brier_after": 0.37370794893235876,
+      "nll_before": 1.1666561365127563,
+      "nll_after": 0.7195466756820679
+    },
+    "onnx_parity": {
+      "logit_max_abs_diff": 4.470348358154297e-07,
+      "feature_max_abs_diff": 1.4781951904296875e-05
+    },
+    "best_epoch": 21,
+    "total_epochs_run": 27,
+    "total_training_time_minutes": 27.30780806938807,
+    "n_train_images": 3741,
+    "n_val_images": 334,
+    "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "note": "Internal validation split only (APTOS+IDRiD-train held-out, image-level, cross-dataset near-duplicate-checked). NOT an external/sealed test result \u2014 do not report as the PS sensitivity/specificity claim. Sealed evaluation (Messidor-2 / IDRiD grading-test, 103 images) has not been run; that split is reserved until the full system is frozen."
+  },
+  "class_labels": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "output_format": "raw_logits",
+  "threshold": 0.5,
+  "gradcam_target_layer": "features",
+  "gradcam_fc_weights_file": "gradcam_fc_weights.npy"
+}

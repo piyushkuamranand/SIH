@@ -111,18 +111,39 @@ def _compute_gradcam_from_onnx(
     input_tensor: np.ndarray,
     target_class: int,
     target_layer_name: Optional[str] = None,
-) -> np.ndarray:
+    contract: Optional[Dict[str, Any]] = None,
+    model_dir: Optional[Union[str, Path]] = None,
+) -> Tuple[np.ndarray, str]:
     """
-    Compute intermediate feature map activations and class attention map from an ONNX model.
+    Compute a class activation map (CAM, Zhou et al. 2016) from an ONNX model whose
+    grading head is global-average-pooling -> fully-connected (true of ResNet-50 and
+    EfficientNet-B0, the two backbones in the model contract). This is mathematically
+    exact for that architecture and needs no backward pass:
 
-    Args:
-        model_path:        Path to the ONNX model file.
-        input_tensor:      NCHW float32 input tensor (1, C, H, W).
-        target_class:      Target ICDR severity class (0–4).
-        target_layer_name: Optional name of the final convolutional layer.
+        CAM_c(x, y) = ReLU( sum_k  w[c, k] * feature_map[k, x, y] )
+
+    where `feature_map` is the last convolutional block's output (exposed as a second
+    ONNX graph output at export time, see training/train_grading.py) and `w[c, :]` is
+    the final FC layer's weight row for the target class (exported alongside the model
+    as `gradcam_fc_weights.npy`, referenced by contract['gradcam_fc_weights_file']).
+
+    If either the feature-map output or the FC-weight file is missing (e.g. a model
+    exported without Grad-CAM support), this function does NOT fabricate a heatmap.
+    It falls back to an unweighted mean of the last conv layer's channels — a real,
+    measured signal (coarse "where the network looked overall"), but explicitly NOT
+    class-discriminative — and reports that degradation in the returned mode string
+    so callers/UI can disclose it rather than presenting it as normal Grad-CAM.
 
     Returns:
-        2D float32 activation map (h, w).
+        (2D float32 activation map (h, w), mode) where mode is one of
+        "cam_fc_weighted" (exact, class-specific) or
+        "unweighted_channel_mean" (degraded — feature map exposed but no FC weights).
+
+    Raises:
+        RuntimeError: If onnxruntime is not installed, or the ONNX graph exposes no
+                      intermediate feature-map output at all (no attention signal
+                      can be computed — the caller must surface this as unavailable,
+                      never as a heatmap).
     """
     try:
         import onnxruntime as ort
@@ -130,38 +151,42 @@ def _compute_gradcam_from_onnx(
         raise RuntimeError("onnxruntime is required for Grad-CAM execution.") from exc
 
     session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
-    
-    # Check session outputs
     output_names = [out.name for out in session.get_outputs()]
     input_name = session.get_inputs()[0].name
 
-    # If the model was exported with intermediate layer outputs exposed
-    if target_layer_name and target_layer_name in output_names:
-        outputs = session.run([target_layer_name, output_names[0]], {input_name: input_tensor})
-        feature_maps = outputs[0]  # Shape (1, C, H, W)
-        # Global average across channels weighted by target class activation
-        cam = np.mean(feature_maps[0], axis=0)
-        return cam.astype(np.float32)
+    feature_output_name = target_layer_name if (target_layer_name and target_layer_name in output_names) else None
+    if feature_output_name is None:
+        raise RuntimeError(
+            "Grading model ONNX graph does not expose an intermediate feature-map "
+            "output (contract['gradcam_target_layer']). Model attention cannot be "
+            "computed for this artifact — export the model via "
+            "training/train_grading.py, which exposes the last conv block as a "
+            "second graph output."
+        )
 
-    # Standard single-output classifier ONNX session
-    outputs = session.run(None, {input_name: input_tensor})
-    logits = outputs[0]  # Shape (1, num_classes)
-    
-    # If no intermediate tensor exposed directly in the ONNX graph,
-    # generate a spatial attention map based on spatial gradient response / backbone properties
-    spatial_h, spatial_w = input_tensor.shape[2] // 16, input_tensor.shape[3] // 16
-    spatial_h = max(7, spatial_h)
-    spatial_w = max(7, spatial_w)
+    outputs = session.run([feature_output_name, output_names[0]], {input_name: input_tensor})
+    feature_maps = np.asarray(outputs[0], dtype=np.float32)[0]  # (C, h, w)
 
-    # Construct representative attention response
-    # Center-weighted activation heightened by class severity confidence
-    y, x = np.ogrid[:spatial_h, :spatial_w]
-    cy, cx = spatial_h / 2.0, spatial_w / 2.0
-    dist_sq = (x - cx) ** 2 + (y - cy) ** 2
-    sigma_sq = (spatial_h / 3.0) ** 2
-    cam = np.exp(-dist_sq / (2.0 * sigma_sq))
-    
-    return cam.astype(np.float32)
+    fc_weights_file = (contract or {}).get("gradcam_fc_weights_file")
+    if fc_weights_file and model_dir is not None:
+        weights_path = Path(model_dir) / fc_weights_file
+        if weights_path.is_file():
+            fc_weights = np.load(weights_path)  # (num_classes, C)
+            if target_class < fc_weights.shape[0] and fc_weights.shape[1] == feature_maps.shape[0]:
+                class_weights = fc_weights[target_class]  # (C,)
+                cam = np.tensordot(class_weights, feature_maps, axes=([0], [0]))  # (h, w)
+                cam = np.maximum(cam, 0.0)
+                return cam.astype(np.float32), "cam_fc_weighted"
+            logger.warning(
+                "gradcam_fc_weights shape %s incompatible with feature map channels %d / "
+                "target_class %d — falling back to unweighted channel mean.",
+                fc_weights.shape, feature_maps.shape[0], target_class,
+            )
+
+    # Degraded fallback: real measured activations, but not class-specific.
+    cam = np.mean(feature_maps, axis=0)
+    cam = np.maximum(cam, 0.0)
+    return cam.astype(np.float32), "unweighted_channel_mean"
 
 
 def run_gradcam(
@@ -248,7 +273,10 @@ def run_gradcam(
 
     # 4. Compute Grad-CAM activation map
     target_layer = contract.get("gradcam_target_layer", None)
-    cam_raw = _compute_gradcam_from_onnx(model_path, input_tensor, target_class, target_layer)
+    cam_raw, cam_mode = _compute_gradcam_from_onnx(
+        model_path, input_tensor, target_class, target_layer,
+        contract=contract, model_dir=model_dir,
+    )
 
     # 5. Generate heatmap overlay on preprocessed image
     overlay = generate_heatmap_overlay(
@@ -272,4 +300,8 @@ def run_gradcam(
         "model_name": str(contract.get("model_name", "grading_model")),
         "model_version": str(contract.get("model_version", "unknown")),
         "alpha": float(alpha),
+        # "cam_fc_weighted" = exact class-activation map (Zhou et al.) for this severity_class.
+        # "unweighted_channel_mean" = degraded, non-class-specific fallback — UI must disclose this.
+        "cam_mode": cam_mode,
+        "is_class_specific": cam_mode == "cam_fc_weighted",
     }

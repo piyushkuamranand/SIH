@@ -1,0 +1,40 @@
+{
+  "sources": {
+    "aptos2019": 3662,
+    "idrid_grading_train": 413
+  },
+  "excluded": {
+    "ddr": "not downloaded, excluded per instruction",
+    "idrid_grading_test": "SEALED (103 images) \u2014 never read by this script"
+  },
+  "total_images": 4075,
+  "dedup_groups": 1647,
+  "cross_dataset_duplicate_groups": 0,
+  "hash_max_distance": 4,
+  "train_count": 3741,
+  "val_count": 334,
+  "train_class_distribution": {
+    "0": 1844,
+    "1": 330,
+    "2": 1030,
+    "3": 231,
+    "4": 306
+  },
+  "val_class_distribution": {
+    "0": 95,
+    "1": 60,
+    "2": 105,
+    "3": 36,
+    "4": 38
+  },
+  "train_dataset_distribution": {
+    "aptos2019": 3336,
+    "idrid_grading_train": 405
+  },
+  "val_dataset_distribution": {
+    "aptos2019": 326,
+    "idrid_grading_train": 8
+  },
+  "seed": 42,
+  "limitation": "Neither APTOS nor IDRiD grading CSVs expose a patient/exam id; this is a near-duplicate-aware (aHash, cross-dataset), class-stratified IMAGE-level split, not a patient-level split."
+}

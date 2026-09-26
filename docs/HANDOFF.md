@@ -249,7 +249,9 @@ Every model-integration task must explicitly handle: missing model artifact, cor
 
 _(update this section after each completed task — see TASKS.md for the live tracker)_
 
-- Nothing implemented yet. Control files (HANDOFF.md, IMPLEMENTATION_SCHEMA.md, TASKS.md) have just been generated.
+- TASK-001 through TASK-021 complete (full pipeline scaffolding, Flask UI, Simulink design doc — see TASKS.md for detail).
+- TASK-022: fixed app/app.py to actually call run_full_pipeline() (it previously only ever ran Phase 1); replaced the fabricated Grad-CAM fallback with real class activation mapping; added a rule-based IQA baseline (no dataset needed) since the EyeQ checkpoint was never delivered.
+- TASK-023: GPU environment verified and used (torch 2.14.0+cu126, RTX 3050 6GB). **All 5 model directories now hold real, trained, contract-conformant artifacts** — grading (ResNet-50, ImageNet-pretrained, APTOS+IDRiD), vessel_seg (U-Net, DRIVE), lesion_seg (U-Net, IDRiD HE/EX/SE), ma_detector (classical top-hat + CNN FP-reducer, IDRiD), and quality (rule-based baseline). The pipeline runs end-to-end on real images with zero "unavailable" placeholders and zero fabricated numbers. See docs/model_cards/*.md for exact measured metrics and honestly-documented limitations (notably: MA detector FROC is below the literature reference, root-caused to resolution; decision fusion is still fallback-only). See docs/TASKS.md TASK-023 note for full detail.
 
 ## CURRENT TASK
 

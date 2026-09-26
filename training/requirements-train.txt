@@ -1,0 +1,17 @@
+# Training-side dependencies ONLY — never installed for the Flask prototype
+# (see requirements.txt, which stays onnxruntime/opencv/flask only).
+# Mirrors the MATLAB training/website separation described in docs/HANDOFF.md:
+# training/ scripts are never imported by app/ or pipeline/.
+#
+# Install with:
+#   pip install -r training/requirements-train.txt
+#
+# NOTE: this machine has a constrained network connection. The CPU-only wheel
+# index below avoids the ~2.5 GB CUDA wheel (this machine also has no
+# Parallel Computing Toolbox for MATLAB GPU training — see docs/model_cards/
+# grading.md for the full reasoning). If you have a fast connection and a
+# CUDA-capable GPU, install from https://download.pytorch.org/whl/cu124 (or
+# your CUDA version) instead for much faster training.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4.0
+torchvision>=0.19.0

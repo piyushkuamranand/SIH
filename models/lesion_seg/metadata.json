@@ -1,0 +1,58 @@
+{
+  "model_name": "unet_lesion_seg_he_ex_se",
+  "model_version": "1.0.0",
+  "input_size": [
+    512,
+    512
+  ],
+  "channels": 3,
+  "normalization": {
+    "mean": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "std": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "model_file": "lesion_model.onnx",
+  "framework": "onnx",
+  "training_dataset": "IDRiD Segmentation (folder A) published train/test split: 54 train, 27 val (val = IDRiD's own 'Testing Set', NOT the sealed grading-test split). Missing mask files (e.g. many images have no Soft Exudates) treated as all-zero, not dropped.",
+  "preprocessing": [
+    "fov_crop",
+    "resize",
+    "clahe",
+    "normalize",
+    "resize_to_input_size"
+  ],
+  "eval_metrics": {
+    "val_dice_he": 0.3631614778063797,
+    "val_dice_ex": 0.5982332369510316,
+    "val_dice_se": 0.24769922978157718,
+    "best_epoch": 137,
+    "total_epochs_run": 150,
+    "total_training_time_minutes": 75.12402228514354,
+    "n_train_images": 54,
+    "n_val_images": 27,
+    "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "onnx_parity": {
+      "max_abs_diff": 1.1324882507324219e-06
+    },
+    "note": "Dice computed only over images where either ground truth or prediction is non-empty for that class (images with neither are excluded, not counted as perfect). SE has far fewer positive examples than HE/EX (see 'training_dataset') so its Dice is measured on a smaller effective sample."
+  },
+  "mask_labels": [
+    "HE",
+    "EX",
+    "SE"
+  ],
+  "output_format": "multi_channel_mask",
+  "mask_resolution": [
+    512,
+    512
+  ],
+  "he_presence_threshold": 50,
+  "threshold": 0.5
+}

@@ -108,7 +108,7 @@ def test_label_strictly_model_attention():
     with patch("pipeline.explain.load_contract", return_value=contract), \
          patch("pipeline.explain.resolve_model_path", return_value="fake_model.onnx"), \
          patch("pathlib.Path.is_file", return_value=True), \
-         patch("pipeline.explain._compute_gradcam_from_onnx", return_value=np.ones((14, 14), dtype=np.float32)):
+         patch("pipeline.explain._compute_gradcam_from_onnx", return_value=(np.ones((14, 14), dtype=np.float32), "cam_fc_weighted")):
 
         res = run_gradcam(dummy_img, severity_class=3)
 

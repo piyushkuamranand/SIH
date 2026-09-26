@@ -1,7 +1,17 @@
 {
-  "temperature": 1.0,
-  "fitted": false,
+  "temperature": 2.8,
+  "fitted": true,
   "method": "temperature_scaling",
-  "dataset": "validation_fold",
-  "description": "Temperature scaling calibration parameter for Phase 3 DR grading model. Default is 1.0 (unfitted / no-op) until fitted offline on validation fold."
+  "dataset": "grading_val (334 images: GradingDataset)",
+  "pre_calibration_metrics": {
+    "nll": 1.1666561365127563,
+    "ece": 0.16554671597338005,
+    "brier": 0.41959106338291363
+  },
+  "post_calibration_metrics": {
+    "nll": 0.7195466756820679,
+    "ece": 0.04602308508878697,
+    "brier": 0.37370794893235876
+  },
+  "description": "Temperature scaling fitted by NLL minimization on the grading validation split (334 images) after training/train_grading.py. Backbone=resnet50, pretrained=True (ImageNet), GPU-trained."
 }

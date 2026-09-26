@@ -1,0 +1,54 @@
+{
+  "model_name": "unet_vessel_seg",
+  "model_version": "1.0.0",
+  "input_size": [
+    512,
+    512
+  ],
+  "channels": 3,
+  "normalization": {
+    "mean": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "std": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "model_file": "vessel_model.onnx",
+  "framework": "onnx",
+  "training_dataset": "DRIVE (train=16, val=4 of the 20-image training set; DRIVE test-set folder has no publicly distributed vessel ground truth in this download). Split is image-level, which IS patient-level here (DRIVE = one eye per subject).",
+  "preprocessing": [
+    "fov_crop",
+    "resize",
+    "clahe",
+    "normalize",
+    "resize_to_input_size"
+  ],
+  "eval_metrics": {
+    "val_dice": 0.8071769236679589,
+    "val_thin_vessel_sensitivity": 0.7423824003083966,
+    "best_epoch": 115,
+    "total_epochs_run": 140,
+    "total_training_time_minutes": 5.585175919532776,
+    "n_train_images": 16,
+    "n_val_images": 4,
+    "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "onnx_parity": {
+      "max_abs_diff": 1.4901161193847656e-06
+    },
+    "note": "Validated on a 4-image held-out subset of DRIVE's 20 training images (no vessel ground truth exists for DRIVE's test folder in this download). Not cross-checked against STARE/CHASE_DB1 (not downloaded)."
+  },
+  "mask_labels": [
+    "vessel"
+  ],
+  "output_format": "binary_mask",
+  "mask_resolution": [
+    512,
+    512
+  ],
+  "threshold": 0.5
+}

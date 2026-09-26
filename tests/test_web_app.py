@@ -1,13 +1,17 @@
 """
-tests/test_phase1_prototype.py — End-to-End Tests for Phase 1 EyeQ Prototype
+tests/test_web_app.py — End-to-End Tests for the NETRA-DR Web Prototype
 
 Tests:
 1. GET /: renders upload interface and demo quick-actions.
-2. POST / (demo good sample): runs EyeQ, outputs GOOD quality label, passes quality gate.
-3. POST / (demo reject sample): runs EyeQ, outputs REJECT quality label, halts downstream pipeline.
+2. POST / (demo good sample): runs the full pipeline, GOOD quality passes the gate.
+3. POST / (demo reject sample): runs Phase 1 only; REJECT halts downstream phases.
 4. POST / (invalid file): input validation rejects non-image or corrupted files.
-5. POST /api/quality: programmatic JSON API evaluates image quality.
-6. GET /api/status: returns model readiness and operational status.
+5. POST /api/grade: programmatic JSON API runs the full pipeline.
+6. GET /api/status: returns per-model readiness and operational status.
+
+Phase 2–4 model artifacts may not be delivered yet (see models/*/metadata.json);
+these tests only assert on Phase 1 (which has a working rule-based baseline) and
+on graceful "unavailable" behaviour for the not-yet-trained phases — never a crash.
 """
 
 from __future__ import annotations
@@ -36,33 +40,30 @@ def test_get_upload_page(client):
     assert res.status_code == 200
     html = res.data.decode("utf-8")
     assert "NETRA-DR" in html
-    assert "Phase 1: EyeQ Quality Assessment" in html
-    assert "Upload Fundus Image" in html
+    assert "Image Intake" in html
     assert "Good Sample" in html
     assert "Reject Sample" in html
 
 
 def test_post_demo_good_image(client):
-    """POST / with demo_image=good should evaluate to GOOD."""
+    """POST / with demo_image=good should pass the Phase 1 quality gate."""
     res = client.post("/", data={"demo_image": "good"})
     assert res.status_code == 200
     html = res.data.decode("utf-8")
-    assert "Phase 1 — EyeQ Quality Assessment Result" in html
+    assert "Phase 1" in html
     assert "GOOD" in html
     assert "Quality Gate Passed" in html
     assert "PROCEED" in html
 
 
 def test_post_demo_reject_image(client):
-    """POST / with demo_image=reject should evaluate to REJECT and halt."""
+    """POST / with demo_image=reject should evaluate to REJECT and halt at Phase 1."""
     res = client.post("/", data={"demo_image": "reject"})
     assert res.status_code == 200
     html = res.data.decode("utf-8")
-    assert "Phase 1 — EyeQ Quality Assessment Result" in html
     assert "REJECT" in html
     assert "Recapture Advised" in html
     assert "HALT" in html
-    assert "Phases 2–4 Halted" in html
 
 
 def test_post_file_upload_good(client):
@@ -94,39 +95,38 @@ def test_post_invalid_file_rejected(client):
     assert "Invalid image file" in html
 
 
-def test_api_quality_endpoint_json(client):
-    """POST /api/quality with image_path JSON payload."""
+def test_api_grade_endpoint_json(client):
+    """POST /api/grade with image_path JSON payload runs the full pipeline."""
     res = client.post(
-        "/api/quality",
+        "/api/grade",
         json={"image_path": str(GOOD_SAMPLE)},
     )
     assert res.status_code == 200
     data = res.get_json()
     assert data["status"] == "success"
-    assert data["quality_label"] == "GOOD"
-    assert data["quality_score"] > 0.95
-    assert data["action"] == "PROCEED"
-    assert "probabilities" in data
-    assert "good" in data["probabilities"]
+    assert data["quality"]["label"] == "GOOD"
+    assert "grading" in data
+    assert "explainability" in data
 
 
-def test_api_quality_endpoint_reject(client):
-    """POST /api/quality with reject image."""
+def test_api_grade_endpoint_reject(client):
+    """POST /api/grade with a reject-quality image halts at Phase 1."""
     res = client.post(
-        "/api/quality",
+        "/api/grade",
         json={"image_path": str(REJECT_SAMPLE)},
     )
     assert res.status_code == 200
     data = res.get_json()
     assert data["status"] == "success"
-    assert data["quality_label"] == "REJECT"
-    assert data["action"] == "HALT"
+    assert data["quality"]["label"] == "REJECT"
+    assert data["stopped_at_phase1"] is True
 
 
 def test_api_status_endpoint(client):
-    """GET /api/status returns operational status and EyeQ readiness."""
+    """GET /api/status returns operational status and per-model readiness."""
     res = client.get("/api/status")
     assert res.status_code == 200
     data = res.get_json()
     assert data["status"] == "operational"
-    assert data["phase1_eyeq"]["available"] is True
+    assert "startup_report" in data
+    assert "items" in data["startup_report"]

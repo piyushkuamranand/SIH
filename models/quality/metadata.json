@@ -1,22 +1,21 @@
 {
-  "model_name": "EyeQ-EfficientNetB4",
+  "model_name": "rule_based_iqa_v1",
   "model_version": "1.0.0",
-  "input_size": [520, 520],
+  "input_size": [512, 512],
   "channels": 3,
   "normalization": {
-    "type": "non-zero pixel mean/std",
+    "type": "none",
     "mean": [0.0, 0.0, 0.0],
     "std": [1.0, 1.0, 1.0]
   },
-  "model_file": "../../external/EyeQ/checkpoints/efficientnet/0_seed_42/best_loss_checkpoint.pth",
-  "framework": "pytorch",
-  "training_dataset": "EyePACS quality subset (EyeQ)",
-  "preprocessing": "Resize to 520x520, non-zero pixel mean/std normalization",
+  "model_file": "iqa_thresholds.json",
+  "framework": "rule_based",
+  "training_dataset": "None — heuristic thresholds, not fitted on labelled data (see model card)",
+  "preprocessing": ["fov_crop", "focus_variance", "illumination_stats"],
   "eval_metrics": {
-    "ensemble_size": 8,
-    "architecture": "EfficientNet-B4 ensemble (8 seeds)"
+    "note": "Not yet benchmarked against a labelled quality dataset (EyeQ / DDR ungradable). This is the mandatory rule-based baseline per blueprint K.2 (DEC-01); a learned classifier will replace/augment it once EyeQ or DDR is available and only if it beats this baseline on the false-\"Gradable\" rate (the safety-critical metric)."
   },
   "class_labels": ["GOOD", "BORDERLINE", "REJECT"],
-  "output_format": "probabilities",
+  "output_format": "rule_based_scores",
   "threshold": 0.5
 }

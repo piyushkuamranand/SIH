@@ -19,8 +19,24 @@ from pathlib import Path
 
 import numpy as np
 
-from pipeline.contract import ModelArtifactNotFoundError, ModelContractError
+from pipeline.contract import ModelArtifactNotFoundError, ModelContractError, load_contract, resolve_model_path
 from pipeline.quality import run_quality_gate
+
+
+def _quality_model_ready() -> bool:
+    """
+    True if models/quality has a real, loadable model artifact — regardless of
+    framework (rule_based / onnx / pytorch). Checking for a specific extension
+    (e.g. '*.onnx') is wrong once a non-ONNX baseline (the rule-based IQA
+    baseline, blueprint K.2) is the shipped default; this uses the same
+    contract-resolution path run_quality_gate() itself uses.
+    """
+    try:
+        contract = load_contract("models/quality", "classifier")
+        resolve_model_path("models/quality", contract)
+        return True
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -153,9 +169,8 @@ class TestQualityGatePreprocessedImageReturned(unittest.TestCase):
             return False
 
     @unittest.skipUnless(
-        Path("models/quality/metadata.json").is_file()
-        and any(Path("models/quality").glob("*.onnx")),
-        "Skipped: quality model artifact not yet available (MATLAB export pending).",
+        _quality_model_ready(),
+        "Skipped: quality model artifact not yet available.",
     )
     def test_inference_returns_expected_keys(self):
         """Integration test: inference returns quality_label, quality_score, preprocessed_image."""
@@ -182,9 +197,8 @@ class TestQualityGatePreprocessedImageReturned(unittest.TestCase):
         self.assertEqual(img.dtype, np.float32)
 
     @unittest.skipUnless(
-        Path("models/quality/metadata.json").is_file()
-        and any(Path("models/quality").glob("*.onnx")),
-        "Skipped: quality model artifact not yet available (MATLAB export pending).",
+        _quality_model_ready(),
+        "Skipped: quality model artifact not yet available.",
     )
     def test_preprocessed_image_returned_for_reject_and_good(self):
         """

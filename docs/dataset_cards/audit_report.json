@@ -1,0 +1,130 @@
+{
+  "aptos2019": {
+    "total_labelled_rows": 3662,
+    "corrupt_or_missing": [],
+    "distinct_image_dimensions_count": 17,
+    "sample_dimensions": [
+      [
+        474,
+        358
+      ],
+      [
+        2896,
+        1944
+      ],
+      [
+        3216,
+        2136
+      ],
+      [
+        2416,
+        1736
+      ],
+      [
+        2048,
+        1536
+      ]
+    ],
+    "dedup_and_split_report": {
+      "dataset": "aptos2019",
+      "source_csv": "train (2).csv",
+      "total_images": 3662,
+      "missing_image_files": [],
+      "dedup_groups": 1591,
+      "dedup_groups_with_duplicates": 111,
+      "hash_max_distance": 4,
+      "val_fraction_requested": 0.15,
+      "train_count": 3348,
+      "val_count": 314,
+      "train_class_distribution": {
+        "0": 1699,
+        "1": 321,
+        "2": 908,
+        "3": 162,
+        "4": 258
+      },
+      "val_class_distribution": {
+        "0": 106,
+        "1": 49,
+        "2": 91,
+        "3": 31,
+        "4": 37
+      },
+      "seed": 42,
+      "limitation": "APTOS 2019 Kaggle CSV has no patient/exam id field; this is a near-duplicate-aware, class-stratified IMAGE-level split, not a patient-level split. Near-duplicate groups (aHash Hamming distance <= 4) are kept entirely within one split."
+    },
+    "patient_id_field_present": false,
+    "note": "No patient/exam id field in the Kaggle CSV \u2014 image-level split only (see dedup report)."
+  },
+  "idrid": {
+    "grading_train_count": 413,
+    "grading_train_class_distribution": {
+      "0": 134,
+      "1": 20,
+      "2": 136,
+      "3": 74,
+      "4": 49
+    },
+    "grading_train_missing_images": [],
+    "grading_test_count": 103,
+    "grading_test_class_distribution": {
+      "0": 34,
+      "1": 5,
+      "2": 32,
+      "3": 19,
+      "4": 13
+    },
+    "grading_test_missing_images": [],
+    "grading_test_status": "SEALED \u2014 per Final Model Stack Step 1, not to be opened for training/tuning until the model is frozen",
+    "segmentation_images_train": 54,
+    "segmentation_images_test": 27,
+    "segmentation_masks_train": {
+      "1. Microaneurysms": 54,
+      "2. Haemorrhages": 53,
+      "3. Hard Exudates": 54,
+      "4. Soft Exudates": 26,
+      "5. Optic Disc": 54
+    },
+    "segmentation_masks_test": {
+      "1. Microaneurysms": 27,
+      "2. Haemorrhages": 27,
+      "3. Hard Exudates": 27,
+      "4. Soft Exudates": 14,
+      "5. Optic Disc": 27
+    },
+    "image_mask_alignment_sample": [
+      {
+        "image": "IDRiD_01",
+        "image_size": [
+          4288,
+          2848
+        ],
+        "ma_mask_size": [
+          4288,
+          2848
+        ],
+        "aligned": true
+      }
+    ]
+  },
+  "drive": {
+    "train_images": 20,
+    "train_vessel_masks": 20,
+    "test_images": 20,
+    "test_fov_masks": 20,
+    "note": "DRIVE test set has no vessel ground truth distributed publicly (2nd/3rd observer masks not in this download) \u2014 only FOV masks. Vessel model validation uses a held-out split of the 20 training images.",
+    "image_dimensions": [
+      [
+        565,
+        584
+      ]
+    ],
+    "image_mask_alignment_ok": true
+  },
+  "external_repos_file_counts": {
+    "EyeQ": 0,
+    "FGR-NET": 0
+  },
+  "external_repos_note": "external/EyeQ and external/FGR-NET directories exist but contain 0 files (confirmed by rglob count above) \u2014 no usable pretrained checkpoint or code is actually present locally, despite the old models/quality/metadata.json (now replaced) pointing at an EyeQ checkpoint path. This is why Phase 1 uses the rule-based IQA baseline instead.",
+  "ddr_status": "NOT downloaded \u2014 intentionally excluded from this training run per instruction."
+}

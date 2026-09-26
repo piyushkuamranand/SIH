@@ -531,6 +531,113 @@ figcaption {
   color: #f87171;
 }
 
+/* ── Phase 2 evidence grid ───────────────────────────────────────────── */
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.unavailable-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding: 1rem;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+  background: var(--surface-alt);
+}
+
+/* ── Phase 1 measured reasons ────────────────────────────────────────── */
+.reasons-box { margin: 1rem 0; }
+.reasons-list {
+  list-style: disc;
+  margin-left: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.reasons-list li { padding: 0.15rem 0; }
+
+/* ── Phase 3 severity badge (ICDR 0–4) ───────────────────────────────── */
+.severity-badge { font-weight: 700; }
+.grade-0 { background: rgba(34, 197, 94, 0.2);  color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+.grade-1 { background: rgba(163, 230, 53, 0.2); color: #bef264; border: 1px solid rgba(163, 230, 53, 0.4); }
+.grade-2 { background: rgba(245, 158, 11, 0.2); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.4); }
+.grade-3 { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+.grade-4 { background: rgba(239, 68, 68, 0.2);  color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+/* ── Header tagline ───────────────────────────────────────────────────── */
+.site-tagline { font-size: 0.72rem; color: var(--text-muted); font-style: italic; margin-top: 0.15rem; }
+
+/* ── Case metadata strip ─────────────────────────────────────────────── */
+.meta-strip { border-color: var(--border); }
+.timing-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+/* ── Evidence panel (Section 4) ──────────────────────────────────────── */
+.evidence-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  background: var(--surface-alt);
+}
+.evidence-title { font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text); }
+.evidence-stat { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem; }
+
+/* ── Disclaimers ──────────────────────────────────────────────────────── */
+.disclaimer-note {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  border-left: 3px solid var(--primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin: 0.5rem 0 1rem;
+}
+.prototype-disclaimer {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  margin: 1.5rem 0;
+}
+.hint { font-weight: 400; color: var(--text-muted); font-size: 0.75rem; }
+.prob-raw { color: var(--text-muted); font-size: 0.72rem; }
+
+/* ── Doctor review ────────────────────────────────────────────────────── */
+.review-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 0.75rem; }
+.review-note-label { width: 100%; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+.review-actions textarea {
+  width: 100%;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.5rem;
+  font-family: var(--font);
+  resize: vertical;
+}
+.review-status { font-size: 0.8rem; color: var(--primary); margin-top: 0.5rem; min-height: 1.2em; }
+
+/* ── Image preview thumbnail ──────────────────────────────────────────── */
+.preview-thumb { max-width: 220px; max-height: 160px; border-radius: 8px; margin-top: 0.5rem; border: 1px solid var(--border); }
+
+/* ── Simulink card ────────────────────────────────────────────────────── */
+.sim-card { border-color: var(--border); opacity: 0.9; }
+
+/* ── Print layout (Section 10 — Report) ──────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .card { border: 1px solid #ccc; background: #fff; box-shadow: none; break-inside: avoid; }
+  .result-img { max-width: 100%; }
+}
+
 /* ── Footer ──────────────────────────────────────────────────────────── */
 .site-footer {
   text-align: center;

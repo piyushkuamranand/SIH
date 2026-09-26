@@ -1,0 +1,20 @@
+{
+  "_comment": "NETRA-DR Phase 1 rule-based IQA baseline (blueprint K.2, DEC-01 mandatory baseline). Thresholds are documented heuristic defaults from standard focus/illumination/FOV literature for fundus photography, NOT fitted on a labelled dataset. Refit on EyeQ + DDR-ungradable once those datasets are available (see docs/model_cards/quality.md).",
+  "fov": {
+    "background_intensity_threshold": 10,
+    "reject_min_area_fraction": 0.28,
+    "borderline_min_area_fraction": 0.42
+  },
+  "focus": {
+    "reject_max_laplacian_variance": 25.0,
+    "borderline_max_laplacian_variance": 90.0
+  },
+  "illumination": {
+    "reject_max_dark_clipped_fraction": 0.35,
+    "reject_max_bright_clipped_fraction": 0.20,
+    "borderline_max_dark_clipped_fraction": 0.15,
+    "borderline_max_bright_clipped_fraction": 0.08,
+    "ideal_mean_range": [60, 200],
+    "borderline_mean_slack": 40
+  }
+}

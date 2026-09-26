@@ -1,0 +1,28 @@
+{
+  "dataset": "aptos2019",
+  "source_csv": "train (2).csv",
+  "total_images": 3662,
+  "missing_image_files": [],
+  "dedup_groups": 1591,
+  "dedup_groups_with_duplicates": 111,
+  "hash_max_distance": 4,
+  "val_fraction_requested": 0.15,
+  "train_count": 3348,
+  "val_count": 314,
+  "train_class_distribution": {
+    "0": 1699,
+    "1": 321,
+    "2": 908,
+    "3": 162,
+    "4": 258
+  },
+  "val_class_distribution": {
+    "0": 106,
+    "1": 49,
+    "2": 91,
+    "3": 31,
+    "4": 37
+  },
+  "seed": 42,
+  "limitation": "APTOS 2019 Kaggle CSV has no patient/exam id field; this is a near-duplicate-aware, class-stratified IMAGE-level split, not a patient-level split. Near-duplicate groups (aHash Hamming distance <= 4) are kept entirely within one split."
+}

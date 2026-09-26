@@ -2,3 +2,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+
+# Datasets and trained artifacts never go into Git (keep folder skeleton only)
+data/raw/**
+!data/raw/**/
+!data/raw/**/.gitkeep
+data/processed/**
+!data/processed/.gitkeep
+models/**/*.onnx
+models/**/*.mat
+models/**/*.pth
+models/**/*.npy
+models/**/_best_checkpoint.pt
+external/

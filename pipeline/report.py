@@ -43,7 +43,18 @@ Output contract
         "label":           str           # always "model attention"
     },
     "stopped_at_phase1": bool,
-    "error": str | None                  # populated only if a phase raised an error
+    "error": str | None,                 # populated only if a phase raised an error
+    "timings": {                         # seconds, measured with time.perf_counter() —
+        "quality_gate": float,           # never estimated. A stage that did not run
+        "vessel_segmentation": float,    # (skipped or errored before starting) is simply
+        "lesion_segmentation": float,    # absent from this dict, not zero.
+        "ma_detection": float,
+        "grading": float,
+        "calibration": float,
+        "decision_fusion": float,
+        "gradcam": float,
+        "total": float,
+    }
 }
 
 Rules (per HANDOFF.md)
@@ -59,6 +70,7 @@ Rules (per HANDOFF.md)
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -109,6 +121,10 @@ def _empty_phase3() -> Dict[str, Any]:
         "fitted": None,
         "fusion_status": None,
         "reason": None,
+        "model_name": None,
+        "model_version": None,
+        "calibration_temperature": None,
+        "calibration_fitted": None,
     }
 
 
@@ -180,6 +196,9 @@ def run_full_pipeline(
             "Supply a valid path to a fundus image."
         )
 
+    pipeline_start = time.perf_counter()
+    timings: Dict[str, float] = {}  # seconds, measured — never estimated. Missing key = stage did not run.
+
     result: Dict[str, Any] = {
         "phase1": None,
         "phase2": None,
@@ -187,17 +206,20 @@ def run_full_pipeline(
         "phase4": None,
         "stopped_at_phase1": False,
         "error": None,
+        "timings": timings,
     }
 
     # -----------------------------------------------------------------------
     # PHASE 1 — Quality Gate
     # -----------------------------------------------------------------------
     try:
+        _t0 = time.perf_counter()
         phase1_out = run_quality_gate(
             image_path=image_path,
             model_dir=quality_model_dir,
             preprocessing_config=preprocessing_config,
         )
+        timings["quality_gate"] = time.perf_counter() - _t0
         result["phase1"] = phase1_out
     except Exception as exc:
         error_msg = f"Phase 1 error: {type(exc).__name__}: {exc}"
@@ -213,6 +235,7 @@ def run_full_pipeline(
         result["phase2"] = _empty_phase2()
         result["phase3"] = _empty_phase3()
         result["phase4"] = _empty_phase4()
+        timings["total"] = time.perf_counter() - pipeline_start
         return result
 
     # Check Reject gate — Reject images never proceed to Phase 2 onwards.
@@ -222,6 +245,7 @@ def run_full_pipeline(
         result["phase2"] = _empty_phase2()
         result["phase3"] = _empty_phase3()
         result["phase4"] = _empty_phase4()
+        timings["total"] = time.perf_counter() - pipeline_start
         return result
 
     preprocessed_image: Optional[np.ndarray] = phase1_out.get("preprocessed_image")
@@ -234,10 +258,12 @@ def run_full_pipeline(
 
     # 2a — Vessel segmentation
     try:
+        _t0 = time.perf_counter()
         vessel_out = run_vessel_segmentation(
             preprocessed_image=preprocessed_image,
             model_dir=vessel_model_dir,
         )
+        timings["vessel_segmentation"] = time.perf_counter() - _t0
         phase2["vessel_mask"] = vessel_out.get("vessel_mask")
         phase2["vessel_overlay"] = vessel_out.get("vessel_overlay")
     except Exception as exc:
@@ -247,10 +273,12 @@ def run_full_pipeline(
 
     # 2b — Lesion segmentation (HE/EX/SE)
     try:
+        _t0 = time.perf_counter()
         lesion_out = run_lesion_segmentation(
             preprocessed_image=preprocessed_image,
             model_dir=lesion_model_dir,
         )
+        timings["lesion_segmentation"] = time.perf_counter() - _t0
         phase2["lesion_overlay"] = lesion_out.get("lesion_overlay")
         phase2["he_mask"] = lesion_out.get("he_mask")
         phase2["ex_mask"] = lesion_out.get("ex_mask")
@@ -264,10 +292,12 @@ def run_full_pipeline(
 
     # 2c — MA detection
     try:
+        _t0 = time.perf_counter()
         ma_out = run_ma_detection(
             preprocessed_image=preprocessed_image,
             model_dir=ma_model_dir,
         )
+        timings["ma_detection"] = time.perf_counter() - _t0
         phase2["ma_count"] = int(ma_out.get("ma_count", 0))
         phase2["ma_overlay"] = ma_out.get("ma_overlay")
     except Exception as exc:
@@ -286,18 +316,23 @@ def run_full_pipeline(
     phase3 = _empty_phase3()
 
     try:
+        _t0 = time.perf_counter()
         grading_out = run_grading(
             preprocessed_image=preprocessed_image,
             model_dir=grading_model_dir,
         )
+        timings["grading"] = time.perf_counter() - _t0
         severity_class: int = grading_out["severity_class"]
         raw_probs = grading_out["probabilities"]
 
+        _t0 = time.perf_counter()
         cal_out = apply_calibration(
             probabilities=raw_probs,
             config_path=calibration_config,
         )
+        timings["calibration"] = time.perf_counter() - _t0
 
+        _t0 = time.perf_counter()
         decision_out = run_decision_fusion(
             calibrated_probabilities=cal_out["calibrated_probabilities"],
             ma_count=phase2.get("ma_count", 0),
@@ -307,6 +342,7 @@ def run_full_pipeline(
             config_path=decision_config,
             model_dir=decision_model_dir,
         )
+        timings["decision_fusion"] = time.perf_counter() - _t0
 
         phase3 = {
             "severity_class": severity_class,
@@ -318,6 +354,10 @@ def run_full_pipeline(
             "fitted": decision_out["fitted"],
             "fusion_status": decision_out["fusion_status"],
             "reason": decision_out["reason"],
+            "model_name": grading_out.get("model_name"),
+            "model_version": grading_out.get("model_version"),
+            "calibration_temperature": cal_out.get("temperature"),
+            "calibration_fitted": cal_out.get("fitted"),
         }
 
     except Exception as exc:
@@ -336,11 +376,13 @@ def run_full_pipeline(
 
     if sc is not None:
         try:
+            _t0 = time.perf_counter()
             gradcam_out = run_gradcam(
                 preprocessed_image=preprocessed_image,
                 severity_class=int(sc),
                 model_dir=grading_model_dir,
             )
+            timings["gradcam"] = time.perf_counter() - _t0
             phase4 = {
                 "heatmap_overlay": gradcam_out["heatmap_overlay"],
                 "heatmap_raw": gradcam_out["heatmap_raw"],
@@ -359,4 +401,5 @@ def run_full_pipeline(
         )
 
     result["phase4"] = phase4
+    timings["total"] = time.perf_counter() - pipeline_start
     return result

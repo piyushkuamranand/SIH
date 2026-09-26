@@ -1,110 +1,78 @@
 ## NETRA-DR Demo Set — Image Selection Documentation
-## TASK-018 | End-to-end demo wiring with the full demo set
 
-This document describes every image in `data/demo/` and the reasoning behind
-each selection, so a presenter knows exactly what to expect from each one.
+Rewritten after real models were trained (TASK-023). Every result on this
+page was measured by actually running `pipeline.report.run_full_pipeline()`
+on the listed file — nothing here is predicted or aspirational.
 
----
+### Selection method (anti-cherry-picking, per the Development Blueprint)
 
-### Selection criteria (per HANDOFF.md Data Flow section)
+The three graded cases below were selected **by ground-truth ICDR label**,
+from `data/splits/grading_val.csv` (the model's own held-out validation
+split), **before** looking at what the trained model would predict:
 
-The demo set must include:
-- One Good-quality image
-- One Borderline or Reject-quality image
-- Coverage across different DR severity grades where available
-- At least one visually "hard" case to motivate the heatmap explainability
+1. Scan the validation split in file order for the first APTOS image at each
+   target grade (0, 2, 4) whose ground-truth label matches.
+2. Filter only by whether the **quality gate** (an independent, non-grading
+   criterion) passes GOOD/BORDERLINE — several first-choice candidates at
+   grade 0 and grade 2 were rejected by the quality gate and skipped for that
+   reason alone, not because of their grade or the model's prediction on them.
+3. Whatever the grading model then outputs is reported as-is below, **including
+   the one case where it is wrong** (grade 2 → predicted 0).
 
-Dataset source constraint: training/validation/test data must NEVER be copied
-into `data/demo/`. Only individual images hand-selected for demonstration
-purposes are permitted here.
-
----
-
-### Current demo set
-
-#### 1. `good_sample.jpg`
-
-| Field          | Value                                               |
-|----------------|-----------------------------------------------------|
-| File           | data/demo/good_sample.jpg                           |
-| Size           | 664 KB                                              |
-| Source         | Public-domain fundus image (not from training set)  |
-| Quality class  | Expected: Good                                      |
-| DR grade       | Expected: Grade 0 or Grade 1 (mild / no DR)         |
-| Resolution     | 1024 x 1024 px (preprocessed to 512 x 512 for model)|
-
-**Why selected:**
-Demonstrates the "all-clear" path of the pipeline end-to-end. Shows the
-quality gate passing, all Phase 2 structure overlays rendering, Phase 3
-returning a NO REFER decision (assuming Grade 0-1), and the Phase 4 model
-attention heatmap producing a sensible, low-activation map. Gives the
-presenter a clean baseline narrative before showing a pathological case.
-
-**What to narrate:**
-> "This is a well-captured fundus image. The quality gate passes it
-> immediately. Phase 2 identifies the major vessel arcades. The grading
-> model gives us Grade 0 — no diabetic retinopathy — with high confidence.
-> The model attention heatmap highlights the optic disc region, which is
-> where the network learned to anchor its grade-0 representation."
+No image was swapped out because its prediction looked bad.
 
 ---
 
-#### 2. `reject_sample.jpg`
+### Current demo set (5 images)
 
-| Field          | Value                                                       |
-|----------------|-------------------------------------------------------------|
-| File           | data/demo/reject_sample.jpg                                 |
-| Size           | ~19 KB (compressed after synthetic degradation)             |
-| Source         | Synthetically degraded version of good_sample.jpg           |
-| Degradation    | Underexposed (x0.08 brightness), heavy Gaussian blur (s=20),|
-|                | recompressed at JPEG quality 40                             |
-| Quality class  | Expected: Reject                                            |
-| DR grade       | N/A — pipeline stops at Phase 1                             |
+| File | Source | Ground truth | Quality (measured) | Predicted grade | Referral | Notes |
+|---|---|---|---|---|---|---|
+| `good_sample.jpg` | Real fundus photo, not from a labelled split (no ICDR ground truth available) | — | **GOOD** | 0 | NO REFER | Baseline "all clear" path |
+| `reject_sample.jpg` | `good_sample.jpg`, synthetically degraded (×0.08 brightness, heavy Gaussian blur, JPEG-recompressed) — **quality-degradation demo only, no disease severity was fabricated** | — | **REJECT** | N/A (halts at Phase 1) | N/A | Demonstrates the safety gate |
+| `aptos_grade0_0d0b8fc9ab5c.png` | APTOS 2019 validation split, real label | **Grade 0** | BORDERLINE | **0** ✅ | NO REFER | Correct |
+| `aptos_grade2_025a169a0bb0.png` | APTOS 2019 validation split, real label | **Grade 2** | BORDERLINE | **0** ❌ | NO REFER | **Misclassified** — an honest, real model error. Matches the model card's documented weak point (Grade 2 sensitivity 77.1%, adjacent-grade confusion). Kept in the demo set deliberately: this is what "do not hide technical limitations" means in practice. |
+| `aptos_grade4_875a2fc5fe23.png` | APTOS 2019 validation split, real label | **Grade 4** | BORDERLINE | **4** ✅ | **REFER** | Correct — good case for showing model attention on a clearly pathological image |
 
-**Why selected:**
-Demonstrates the Reject gate and the clinical safety principle that the
-system never grades an ungradable image. Shows `stopped_at_phase1=True`
-rendering in the website and the "image rejected, please recapture" message.
+Measured end-to-end pipeline time per case: 3.2–8.6 seconds on this machine
+(CPU onnxruntime inference; MA detection's per-candidate ONNX calls dominate
+— see `docs/checkpoints/ml_training_report.md` Section 9). This is inference
+latency, not the PS's 30-second *ophthalmologist review* budget — the UI
+displays both concepts separately.
 
-**IMPORTANT NOTE:** This image is synthetically degraded for demo purposes.
-It should be replaced with a real DDR ungradable image before the final
-presentation if one becomes available from the dataset, so the rejection
-narrative is grounded in a genuinely poor-quality clinical capture rather
-than an artificial one. Replace the file at `data/demo/reject_sample.jpg`
-and re-run the pipeline to verify.
-
-**What to narrate:**
-> "This is a severely out-of-focus, underexposed fundus image. Our quality
-> gate catches it immediately and stops the pipeline — we display a clear
-> message asking the technician to recapture the image. This is by design:
-> it is safer to ask for a retake than to grade an ungradable image."
+**Why so many real APTOS validation images fail the quality gate:** the
+rule-based IQA baseline (`pipeline/quality.py`, `docs/model_cards/` — no
+learned model, no dataset needed) measures focus via Laplacian variance in a
+canonical 512×512 space. Kaggle's APTOS images are pre-compressed/resized by
+the competition, which measurably lowers this signal relative to a genuinely
+sharp clinical capture. This is a real, measured behavior of the current
+baseline, not a demo bug — see `docs/model_cards/quality.md` if present, or
+`pipeline/quality.py`'s module docstring, for the honest limitation.
 
 ---
 
-### Expected result per image (for presenter reference)
+### Presenter narration suggestions
 
-| Image              | Quality | Stopped? | Grade   | Decision  | Heatmap  |
-|--------------------|---------|----------|---------|-----------|----------|
-| good_sample.jpg    | Good    | No       | 0-1*    | NO REFER* | Present* |
-| reject_sample.jpg  | Reject  | YES      | N/A     | N/A       | N/A      |
+- **Good sample:** "Quality gate passes immediately, full pipeline runs, no
+  DR detected, confidence is high after calibration."
+- **Reject sample:** "Severely degraded image — the gate stops the pipeline
+  before any downstream stage can produce a misleading result. This is a
+  deliberate safety property, not a missing feature."
+- **Grade 0 (real, labelled):** "A real APTOS validation image with a known
+  ground-truth label of no DR — the model agrees."
+- **Grade 2 (real, labelled):** "This one is instructive: ground truth is
+  Moderate NPDR, and the model predicts No DR — a real miss. We show this
+  deliberately. It's the exact grade-1/2 boundary confusion documented in the
+  model card, and it's why the referral decision layer and human review exist
+  — a screening aid, not a diagnostic replacement."
+- **Grade 4 (real, labelled):** "Proliferative DR, correctly identified and
+  correctly routed to REFER. Model attention concentrates on the pathological
+  regions — reported as an attention map, never as clinical proof."
 
-*Exact values depend on the grading model ONNX artifact being present.
-Until the MATLAB team delivers the ONNX exports, all ML phases show
-"unavailable" — the structural plumbing is verified but live inference
-is blocked. The presenter should acknowledge this and show the system's
-honest error handling as a feature, not a bug.
+### Provenance / integrity rules followed
 
----
-
-### To expand the demo set (recommended before final presentation)
-
-Add 3-5 more images covering:
-1. A Grade 2-3 (Moderate/Severe NPDR) case — to demonstrate the REFER path
-2. A Borderline-quality image — to demonstrate the stricter referral threshold
-3. A Grade 4 (PDR) case with visible neovascularization — heatmap will show
-   high peripheral activation
-4. A "hard" case where grade-alone and fused decision disagree — shows the
-   value of decision fusion
-
-Place each image in `data/demo/`, add a row to this table, and update the
-narration notes above. Never include sealed test-set images.
+- No sealed test-set image (`IDRiD` grading-test, Messidor-2) appears here.
+- No demo image's disease severity was ever edited or fabricated — only the
+  REJECT sample's *quality* was synthetically degraded, and that is disclosed
+  above, not hidden.
+- Selection order is reproducible from `data/splits/grading_val.csv` and the
+  procedure in "Selection method" above.

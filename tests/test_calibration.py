@@ -60,10 +60,15 @@ def test_calibration_sharpening_t_less_than_1():
     assert np.isclose(np.sum(result["calibrated_probabilities"]), 1.0, atol=1e-5)
 
 
-def test_calibration_default_config():
-    """Default call reads configs/calibration.json which has temperature=1.0 and fitted=False."""
+def test_calibration_default_config_when_no_file_exists(tmp_path):
+    """apply_calibration() falls back to temperature=1.0 / fitted=False (no-op) when the
+    given config path does not exist — this is the code's default behavior, tested in
+    isolation from whatever configs/calibration.json currently holds in the repo (that
+    file legitimately becomes fitted=True once a real model has been trained and
+    calibrated — see test_calibration_config_file_integrity below)."""
     raw_probs = [0.1, 0.6, 0.2, 0.05, 0.05]
-    result = apply_calibration(raw_probs)
+    missing_path = tmp_path / "does_not_exist.json"
+    result = apply_calibration(raw_probs, config_path=missing_path)
 
     assert np.isclose(result["temperature"], 1.0)
     assert result["fitted"] is False
@@ -122,7 +127,15 @@ def test_calibration_invalid_probabilities():
 
 
 def test_calibration_config_file_integrity():
-    """Verify configs/calibration.json exists, is valid JSON, and has fitted=False by default."""
+    """
+    Verify configs/calibration.json exists, is valid JSON, and is internally honest:
+    - unfitted (fitted=False) must mean temperature=1.0 exactly (no-op, nothing invented).
+    - fitted (fitted=True) must be traceable to a real fit: a positive temperature and a
+      recorded dataset/method (never an invented value — see training/train_grading.py's
+      fit_temperature(), which is the only place that may legitimately set fitted=True).
+    Does not hardcode which state the repo is in — a from-scratch clone before any
+    training run is unfitted; a repo with a trained grading model is fitted.
+    """
     config_path = Path("configs/calibration.json")
     assert config_path.is_file(), "configs/calibration.json must exist"
 
@@ -131,7 +144,11 @@ def test_calibration_config_file_integrity():
 
     assert "temperature" in cfg
     assert "fitted" in cfg
-    assert cfg["fitted"] is False, (
-        "configs/calibration.json must mark fitted as false until fitted on validation fold"
-    )
-    assert cfg["temperature"] == 1.0
+    assert isinstance(cfg["fitted"], bool)
+
+    if cfg["fitted"] is False:
+        assert cfg["temperature"] == 1.0, "An unfitted config must be the exact no-op default (T=1.0)."
+    else:
+        assert cfg["temperature"] > 0, "A fitted temperature must be a positive, real fitted value."
+        assert cfg.get("method") == "temperature_scaling"
+        assert cfg.get("dataset"), "A fitted config must record which split it was fitted on."

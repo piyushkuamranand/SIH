@@ -17,6 +17,7 @@ present — it never fabricates a result.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -115,6 +116,193 @@ def _softmax(logits: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Rule-based IQA baseline (blueprint K.2 / DEC-01 mandatory baseline).
+#
+# Requires no trained model or labelled dataset: measures focus (Laplacian
+# variance inside the detected field of view), illumination (mean level +
+# clipped dark/bright pixel fractions), and field-of-view coverage, then
+# applies documented threshold rules loaded from the model contract's
+# `model_file` (models/quality/iqa_thresholds.json). Every measured value is
+# reported in `reasons` so the decision is auditable — nothing is fabricated.
+# ---------------------------------------------------------------------------
+
+_FOCUS_CANONICAL_SIZE = (512, 512)  # focus/illumination measured in canonical space — scale-invariant
+
+
+def _measure_quality_features(raw_rgb: np.ndarray, fov_bg_threshold: int) -> Dict[str, float]:
+    """
+    Compute deterministic focus / illumination / FOV features for one image.
+
+    FOV area fraction is measured on the raw (native-resolution) frame, since it
+    reflects camera framing/centring. Focus (Laplacian variance) and illumination
+    are measured after resizing the cropped FOV to a fixed canonical resolution
+    (matching pipeline/preprocessing.py's target_size) — raw Laplacian variance is
+    resolution-dependent, so comparing it across images of different native sizes
+    without this step would bias the reject decision toward smaller source images.
+    """
+    import cv2
+
+    from pipeline.preprocessing import crop_fov
+
+    gray_full = cv2.cvtColor(raw_rgb, cv2.COLOR_RGB2GRAY)
+    fov_mask_full = gray_full > fov_bg_threshold
+    total_px = int(gray_full.size)
+    fov_px = int(np.count_nonzero(fov_mask_full))
+    fov_area_fraction = float(fov_px) / float(total_px) if total_px > 0 else 0.0
+
+    if fov_px == 0:
+        # Entire frame below background threshold — cannot measure focus/illumination meaningfully.
+        return {
+            "fov_area_fraction": 0.0,
+            "laplacian_variance": 0.0,
+            "mean_intensity": 0.0,
+            "dark_clipped_fraction": 1.0,
+            "bright_clipped_fraction": 0.0,
+        }
+
+    try:
+        cropped = crop_fov(raw_rgb, threshold=fov_bg_threshold, margin=0)
+    except ValueError:
+        cropped = raw_rgb
+
+    canonical = cv2.resize(cropped, _FOCUS_CANONICAL_SIZE, interpolation=cv2.INTER_AREA)
+    gray_c = cv2.cvtColor(canonical, cv2.COLOR_RGB2GRAY)
+    fov_mask_c = gray_c > fov_bg_threshold
+    fov_px_c = int(np.count_nonzero(fov_mask_c))
+
+    if fov_px_c < 2:
+        laplacian_variance = 0.0
+        mean_intensity = 0.0
+        dark_clipped_fraction = 1.0
+        bright_clipped_fraction = 0.0
+    else:
+        fov_pixels_c = gray_c[fov_mask_c]
+        laplacian = cv2.Laplacian(gray_c, cv2.CV_64F)
+        laplacian_variance = float(np.var(laplacian[fov_mask_c]))
+        mean_intensity = float(np.mean(fov_pixels_c))
+        dark_clipped_fraction = float(np.count_nonzero(fov_pixels_c < 15)) / float(fov_px_c)
+        bright_clipped_fraction = float(np.count_nonzero(fov_pixels_c > 245)) / float(fov_px_c)
+
+    return {
+        "fov_area_fraction": fov_area_fraction,
+        "laplacian_variance": laplacian_variance,
+        "mean_intensity": mean_intensity,
+        "dark_clipped_fraction": dark_clipped_fraction,
+        "bright_clipped_fraction": bright_clipped_fraction,
+    }
+
+
+def _rule_based_quality_decision(
+    features: Dict[str, float],
+    thresholds: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Apply documented threshold rules to measured features. Returns label, score, reasons."""
+    fov_cfg = thresholds.get("fov", {})
+    focus_cfg = thresholds.get("focus", {})
+    illum_cfg = thresholds.get("illumination", {})
+
+    fov_frac = features["fov_area_fraction"]
+    lap_var = features["laplacian_variance"]
+    mean_i = features["mean_intensity"]
+    dark_frac = features["dark_clipped_fraction"]
+    bright_frac = features["bright_clipped_fraction"]
+
+    reject_reasons: List[str] = []
+    borderline_reasons: List[str] = []
+
+    reject_fov = float(fov_cfg.get("reject_min_area_fraction", 0.28))
+    borderline_fov = float(fov_cfg.get("borderline_min_area_fraction", 0.42))
+    if fov_frac < reject_fov:
+        reject_reasons.append(f"field of view too small ({fov_frac:.1%} of frame, need >= {reject_fov:.0%})")
+    elif fov_frac < borderline_fov:
+        borderline_reasons.append(f"field of view partially cropped ({fov_frac:.1%} of frame)")
+
+    reject_focus = float(focus_cfg.get("reject_max_laplacian_variance", 25.0))
+    borderline_focus = float(focus_cfg.get("borderline_max_laplacian_variance", 90.0))
+    if lap_var < reject_focus:
+        reject_reasons.append(f"severe blur (focus score {lap_var:.1f}, need >= {reject_focus:.0f})")
+    elif lap_var < borderline_focus:
+        borderline_reasons.append(f"reduced sharpness (focus score {lap_var:.1f})")
+
+    reject_dark = float(illum_cfg.get("reject_max_dark_clipped_fraction", 0.35))
+    reject_bright = float(illum_cfg.get("reject_max_bright_clipped_fraction", 0.20))
+    borderline_dark = float(illum_cfg.get("borderline_max_dark_clipped_fraction", 0.15))
+    borderline_bright = float(illum_cfg.get("borderline_max_bright_clipped_fraction", 0.08))
+    if dark_frac > reject_dark:
+        reject_reasons.append(f"severe underexposure ({dark_frac:.1%} of FOV near-black)")
+    elif dark_frac > borderline_dark:
+        borderline_reasons.append(f"partial underexposure ({dark_frac:.1%} of FOV near-black)")
+    if bright_frac > reject_bright:
+        reject_reasons.append(f"severe overexposure/glare ({bright_frac:.1%} of FOV near-white)")
+    elif bright_frac > borderline_bright:
+        borderline_reasons.append(f"partial overexposure/glare ({bright_frac:.1%} of FOV near-white)")
+
+    ideal_lo, ideal_hi = illum_cfg.get("ideal_mean_range", [60, 200])
+    slack = float(illum_cfg.get("borderline_mean_slack", 40))
+    if mean_i < (float(ideal_lo) - slack) or mean_i > (float(ideal_hi) + slack):
+        reject_reasons.append(f"illumination far outside expected range (mean intensity {mean_i:.0f})")
+    elif mean_i < ideal_lo or mean_i > ideal_hi:
+        borderline_reasons.append(f"illumination slightly outside ideal range (mean intensity {mean_i:.0f})")
+
+    if reject_reasons:
+        label = "REJECT"
+        reasons = reject_reasons
+    elif borderline_reasons:
+        label = "BORDERLINE"
+        reasons = borderline_reasons
+    else:
+        label = "GOOD"
+        reasons = ["focus, illumination, and field of view all within expected range"]
+
+    # Deterministic composite score in [0, 1]: how far the worst measured
+    # criterion sits past its GOOD threshold (a heuristic severity index for
+    # display, NOT a calibrated probability — every input value is reported
+    # in `reasons` above so the score is always auditable).
+    margins = [
+        min(1.0, fov_frac / borderline_fov) if borderline_fov > 0 else 1.0,
+        min(1.0, lap_var / borderline_focus) if borderline_focus > 0 else 1.0,
+        1.0 - min(1.0, dark_frac / max(borderline_dark, 1e-6)),
+        1.0 - min(1.0, bright_frac / max(borderline_bright, 1e-6)),
+    ]
+    composite = float(np.clip(np.mean(margins), 0.0, 1.0))
+
+    if label == "GOOD":
+        score = float(np.clip(0.55 + 0.45 * composite, 0.0, 1.0))
+        probs = {"good": score, "borderline": (1.0 - score) * 0.7, "reject": (1.0 - score) * 0.3}
+    elif label == "BORDERLINE":
+        score = float(np.clip(0.45 + 0.20 * composite, 0.35, 0.75))
+        probs = {"good": (1.0 - score) * 0.4, "borderline": score, "reject": (1.0 - score) * 0.6}
+    else:
+        score = float(np.clip(0.55 + 0.35 * (1.0 - composite), 0.35, 0.95))
+        probs = {"good": (1.0 - score) * 0.15, "borderline": (1.0 - score) * 0.85, "reject": score}
+
+    total = sum(probs.values())
+    probs = {k: v / total for k, v in probs.items()}
+
+    return {
+        "quality_label": label,
+        "quality_score": score,
+        "probabilities": probs,
+        "reasons": reasons,
+        "measured": features,
+    }
+
+
+def _run_rule_based_quality_gate(image_path: Path, contract: Dict[str, Any], thresholds_path: str) -> Dict[str, Any]:
+    """Rule-based IQA inference path — no model artifact, no torch/onnxruntime required."""
+    from pipeline.preprocessing import load_image
+
+    with open(thresholds_path, "r", encoding="utf-8") as f:
+        thresholds = json.load(f)
+
+    fov_bg_threshold = int(thresholds.get("fov", {}).get("background_intensity_threshold", 10))
+    raw_rgb = load_image(image_path)
+    features = _measure_quality_features(raw_rgb, fov_bg_threshold)
+    decision = _rule_based_quality_decision(features, thresholds)
+    return decision
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -181,8 +369,17 @@ def run_quality_gate(
 
     # ---- 3. Inference based on contract framework ----
     framework = str(contract.get("framework", "onnx")).lower()
+    reasons: List[str] = []
+    measured: Dict[str, float] = {}
 
-    if framework == "pytorch":
+    if framework == "rule_based":
+        decision = _run_rule_based_quality_gate(img_path, contract, model_path)
+        quality_label = decision["quality_label"]
+        quality_score = float(decision["quality_score"])
+        probabilities = decision["probabilities"]
+        reasons = decision["reasons"]
+        measured = decision["measured"]
+    elif framework == "pytorch":
         from pipeline.quality_service import get_quality_service
         service = get_quality_service()
         pred = service.predict(img_path)
@@ -218,4 +415,7 @@ def run_quality_gate(
         "quality_score": quality_score,
         "preprocessed_image": preprocessed_image,
         "probabilities": probabilities,
+        "reasons": reasons,
+        "measured": measured,
+        "model_name": str(contract.get("model_name", "unknown")),
     }

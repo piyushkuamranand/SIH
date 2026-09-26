@@ -1,0 +1,87 @@
+{
+  "model_name": "ma_hybrid_tophat_cnn",
+  "model_version": "1.0.0",
+  "input_size": [
+    512,
+    512
+  ],
+  "channels": 3,
+  "normalization": {
+    "mean": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "std": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "model_file": "ma_fp_reducer.onnx",
+  "framework": "onnx",
+  "training_dataset": "IDRiD Segmentation MA masks: 54 train images used to generate labelled candidate patches (1263 positive / capped negatives per image); 27 test images used for lesion-level FROC evaluation below (IDRiD's own published segmentation test split, NOT the sealed grading-test split).",
+  "preprocessing": [
+    "fov_crop",
+    "resize",
+    "clahe",
+    "normalize"
+  ],
+  "eval_metrics": {
+    "froc": {
+      "sens_at_0.125_fp_per_image": {
+        "sensitivity": 0.06459054209919261,
+        "actual_fp_per_image": 0.1111111111111111,
+        "threshold": 0.9983561635017395
+      },
+      "sens_at_0.25_fp_per_image": {
+        "sensitivity": 0.09688581314878893,
+        "actual_fp_per_image": 0.2222222222222222,
+        "threshold": 0.9971616268157959
+      },
+      "sens_at_0.5_fp_per_image": {
+        "sensitivity": 0.13725490196078433,
+        "actual_fp_per_image": 0.48148148148148145,
+        "threshold": 0.9946159720420837
+      },
+      "sens_at_1_fp_per_image": {
+        "sensitivity": 0.16724336793540945,
+        "actual_fp_per_image": 1.0,
+        "threshold": 0.9918021559715271
+      },
+      "sens_at_2_fp_per_image": {
+        "sensitivity": 0.22491349480968859,
+        "actual_fp_per_image": 2.0,
+        "threshold": 0.9818596243858337
+      },
+      "sens_at_4_fp_per_image": {
+        "sensitivity": 0.2722029988465975,
+        "actual_fp_per_image": 4.0,
+        "threshold": 0.9668233394622803
+      },
+      "sens_at_8_fp_per_image": {
+        "sensitivity": 0.3344867358708189,
+        "actual_fp_per_image": 8.0,
+        "threshold": 0.9213407039642334
+      }
+    },
+    "n_test_images": 27,
+    "onnx_parity": {
+      "max_abs_diff": 1.557530014839531e-37
+    },
+    "best_val_patch_accuracy": 0.8859375,
+    "best_epoch": 13,
+    "total_epochs_run": 30,
+    "total_training_time_minutes": 0.195364507039388,
+    "gpu": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "note": "FROC computed with the SAME classical extractor + patch preparation as pipeline.structure.run_ma_detection() (imported directly, not reimplemented). FROC numbers depend on the fixed connected-component protocol used here (GT dilated by 3px) \u2014 see training/train_ma_detector.py."
+  },
+  "candidate_extraction_method": "top_hat",
+  "tophat_disk_radius": 6,
+  "tophat_threshold_factor": 2.0,
+  "fp_reducer_model_file": "ma_fp_reducer.onnx",
+  "patch_size": 32,
+  "ma_positive_class_index": 1,
+  "output_format": "softmax",
+  "threshold": 0.5
+}
