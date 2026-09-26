@@ -106,10 +106,11 @@ models/
 configs/calibration.json                                        (fitted temperature scaling)
 ```
 
-`*_best_checkpoint.pt` files (raw PyTorch weights) and `.npy`/`.onnx`
-artifacts are gitignored — never committed — per the project's data/artifact
-policy; only `metadata.json` (the model contract) and `training_history.json`
-are tracked.
+All model artifacts (`.onnx`, `.pt`, `.npy`, `metadata.json`,
+`training_history.json`) are tracked in Git — only raw/cached datasets under
+`data/raw/` and `data/processed/` are excluded (see `.gitignore`). Largest
+tracked artifact is ~90MB (`models/grading/grading_model.onnx` and its
+`_best_checkpoint.pt`), safely under GitHub's 100MB hard limit.
 
 ## Demo cases
 
