@@ -1,0 +1,178 @@
+{
+  "dataset": "IDRiD grading-test (folder B, 'b. Testing Set') \u2014 the project's sealed external test set",
+  "n_total_images": 103,
+  "n_gradable": 99,
+  "n_ungradable_reject": 4,
+  "n_errored": 0,
+  "errored_details": [],
+  "model_checkpoint": "models/grading/grading_model.onnx",
+  "model_metadata": "resnet50_dr_grader_imagenet",
+  "model_version": "2.0.0",
+  "calibration_config": {
+    "temperature": 2.8,
+    "fitted": true,
+    "method": "temperature_scaling",
+    "dataset": "grading_val (334 images: GradingDataset)",
+    "pre_calibration_metrics": {
+      "nll": 1.1666561365127563,
+      "ece": 0.16554671597338005,
+      "brier": 0.41959106338291363
+    },
+    "post_calibration_metrics": {
+      "nll": 0.7195466756820679,
+      "ece": 0.04602308508878697,
+      "brier": 0.37370794893235876
+    },
+    "description": "Temperature scaling fitted by NLL minimization on the grading validation split (334 images) after training/train_grading.py. Backbone=resnet50, pretrained=True (ImageNet), GPU-trained."
+  },
+  "decision_rule_config": {
+    "fusion_model_fitted": false,
+    "method": "grade_alone_fallback",
+    "description": "Decision fusion rule combining calibrated grade probabilities and quality tier with evidence logging. The logistic regression fusion model is not yet trained offline (fallback mode active).",
+    "referable_grades": [
+      2,
+      3,
+      4
+    ],
+    "thresholds": {
+      "good_quality": {
+        "referable_prob_threshold": 0.5,
+        "description": "Standard decision threshold on sum of calibrated P(Grade >= 2) for Good quality images"
+      },
+      "borderline_quality": {
+        "referable_prob_threshold": 0.35,
+        "description": "Stricter (higher sensitivity / lower threshold) cutoff for Borderline quality images"
+      }
+    },
+    "fusion_features": [
+      "calibrated_prob_grade_ge_2",
+      "ma_count",
+      "he_presence",
+      "ex_area",
+      "is_borderline_quality"
+    ]
+  },
+  "evaluation_wall_time_sec": 81.57572436332703,
+  "five_class_stats_on_gradable": {
+    "qwk": 0.7128185025480204,
+    "macro_f1": 0.44062986194133735,
+    "confusion_matrix_5class": [
+      [
+        23,
+        4,
+        4,
+        1,
+        0
+      ],
+      [
+        2,
+        0,
+        2,
+        1,
+        0
+      ],
+      [
+        3,
+        4,
+        11,
+        10,
+        4
+      ],
+      [
+        0,
+        1,
+        2,
+        14,
+        2
+      ],
+      [
+        1,
+        0,
+        1,
+        4,
+        5
+      ]
+    ]
+  },
+  "gradable_only": {
+    "label": "Gradable images only (GOOD/BORDERLINE quality)",
+    "n_images": 99,
+    "n_referable_ground_truth": 62,
+    "n_non_referable_ground_truth": 37,
+    "grade_alone": {
+      "confusion": {
+        "TP": 54,
+        "TN": 29,
+        "FP": 8,
+        "FN": 8
+      },
+      "metrics": {
+        "sensitivity": 0.8709677419354839,
+        "specificity": 0.7837837837837838,
+        "precision": 0.8709677419354839,
+        "npv": 0.7837837837837838,
+        "accuracy": 0.8383838383838383,
+        "f1": 0.8709677419354839
+      }
+    },
+    "fused": {
+      "confusion": {
+        "TP": 57,
+        "TN": 23,
+        "FP": 14,
+        "FN": 5
+      },
+      "metrics": {
+        "sensitivity": 0.9193548387096774,
+        "specificity": 0.6216216216216216,
+        "precision": 0.8028169014084507,
+        "npv": 0.8214285714285714,
+        "accuracy": 0.8080808080808081,
+        "f1": 0.8571428571428572
+      }
+    },
+    "roc_auc_referable_probability": 0.9123801220575414,
+    "pr_auc_referable_probability": 0.95505535135158
+  },
+  "including_ungradable": {
+    "label": "Including ungradable images (auto-referred as REFER)",
+    "n_images": 103,
+    "n_referable_ground_truth": 64,
+    "n_non_referable_ground_truth": 39,
+    "grade_alone": {
+      "confusion": {
+        "TP": 56,
+        "TN": 29,
+        "FP": 10,
+        "FN": 8
+      },
+      "metrics": {
+        "sensitivity": 0.875,
+        "specificity": 0.7435897435897436,
+        "precision": 0.8484848484848485,
+        "npv": 0.7837837837837838,
+        "accuracy": 0.8252427184466019,
+        "f1": 0.8615384615384615
+      }
+    },
+    "fused": {
+      "confusion": {
+        "TP": 59,
+        "TN": 23,
+        "FP": 16,
+        "FN": 5
+      },
+      "metrics": {
+        "sensitivity": 0.921875,
+        "specificity": 0.5897435897435898,
+        "precision": 0.7866666666666666,
+        "npv": 0.8214285714285714,
+        "accuracy": 0.7961165048543689,
+        "f1": 0.8489208633093526
+      }
+    },
+    "roc_auc_referable_probability": 0.8689903846153846,
+    "pr_auc_referable_probability": 0.8633657318037167
+  },
+  "note": "This evaluation reuses the same MA/HE/EX evidence defaults (0/False/0.0) as the live decision layer's fallback would use if Phase 2 evidence were absent, since decision fusion is documented as grader-only-plus-quality-tier fallback (fusion_model_fitted=false) \u2014 no fitted evidence-fusion model exists to bypass. This matches production behavior exactly for this decision layer version."
+}

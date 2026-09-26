@@ -131,11 +131,22 @@ high-capacity pretrained backbone on ~3.7k images.
 
 ## Known limitations
 
-1. **Not evaluated on the sealed external test** (Messidor-2 / IDRiD
-   grading-test, 103 images) — that is intentional and reserved until the
-   full system (lesion models, decision fusion) is frozen, per project policy.
-   Do not read the 88.9% QWK / 89% referable sensitivity/specificity above as
-   the PS claim.
+1. **The IDRiD grading-test split was opened and evaluated (2026-09-26) — and
+   found NOT reliably independent of the training pool.** Perceptual-hash
+   near-duplicate checking plus direct visual inspection
+   (`training/verify_sealed_test_independence.py`,
+   `training/investigate_sealed_test_duplicates.py`) found that ~92% of the
+   103 "test" images have a near-identical counterpart (matching vessel
+   arcade geometry, optic disc position, and camera FOV artifact — visually
+   confirmed, not just hash similarity) in the 413-image "training" split.
+   MD5/file-size differ (not literal duplicate files), consistent with the
+   same eye photographed at a different visit — but this still means the
+   model may have partially learned that eye's features during training.
+   **Full detail, raw confusion matrices, and both the contaminated-full-set
+   and clean-8-image-subset numbers: `docs/checkpoints/final_system_verification.md`
+   and `docs/checkpoints/sealed_test_evaluation.json`.** Neither number
+   should be read as the PS's certified final sensitivity/specificity claim
+   — see that report for exactly why. Messidor-2 remains completely unopened.
 2. Grade 1 and Grade 3 have the lowest per-class sensitivity (70%, 50%) —
    both are minority classes even after class weighting, and both sit at
    ordinal boundaries most prone to adjacent-grade confusion.
